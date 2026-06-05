@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sources &amp; provenance — Q-day Clock</title>
+  <meta name="description" content="Full provenance for every signal contributing to the current Q-day Clock reading: source, evidence class, axis, normalized value, and link back to the underlying article.">
+  <link rel="stylesheet" href="assets/clock.css">
+</head>
+<body>
+  <header>
+    <h1>Sources &amp; provenance</h1>
+    <p class="tagline">Every signal feeding the current reading, with evidence class and source link.</p>
+    <p><a href="index.html">&larr; Back to the clock</a></p>
+  </header>
+
+  <main>
+    <section class="sources-intro">
+      <h2>What this page is</h2>
+      <p>
+        Every signal that contributed to the current
+        <a href="dashboard.html">dashboard reading</a> appears below
+        with its evidence class, axis, normalized value in
+        <code>[0, 1]</code>, confidence, and a link back to the
+        underlying article when available. Signal IDs match the
+        <code>contributing_signal_ids</code> in the signed
+        <code>clock_state.json</code> &mdash; this is the audit trail.
+      </p>
+      <p>
+        Evidence-class tags follow the methodology: <code>theory</code>,
+        <code>simulation</code>, <code>hardware</code>,
+        <code>roadmap</code>, <code>policy</code>, <code>survey</code>.
+        Roadmap signals are capped per axis (see
+        <a href="methodology.html">methodology</a>); they do not move
+        the clock the same way a measured hardware result does.
+      </p>
+    </section>
+
+    <section class="sources-meta">
+      <h2>Reading context</h2>
+      <ul>
+        <li><strong>Reading generated:</strong> {{ state.generated_at.strftime('%Y-%m-%d %H:%M UTC') }}</li>
+        <li><strong>Schema version:</strong> {{ state.version }}</li>
+        <li><strong>GRI baseline anchor:</strong> {{ state.gri_baseline_label }}</li>
+        <li><strong>Total signals listed:</strong> {{ signal_rows | length }}</li>
+      </ul>
+    </section>
+
+    <section class="sources-list" aria-labelledby="sources-heading">
+      <h2 id="sources-heading">Signals</h2>
+      {% if signal_rows %}
+      <table class="signals-table">
+        <caption>Signals contributing to the current reading</caption>
+        <thead>
+          <tr>
+            <th scope="col">Signal ID</th>
+            <th scope="col">Axis</th>
+            <th scope="col">Title</th>
+            <th scope="col">Source</th>
+            <th scope="col">Evidence</th>
+            <th scope="col">Normalized</th>
+            <th scope="col">Confidence</th>
+            <th scope="col">Published</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sig in signal_rows %}
+          <tr id="{{ sig.signal_id }}">
+            <td><code>{{ sig.signal_id }}</code></td>
+            <td>{{ sig.axis_label }}</td>
+            <td>
+              {% if sig.url %}
+              <a href="{{ sig.url }}">{{ sig.title }}</a>
+              {% else %}
+              {{ sig.title }}
+              {% endif %}
+            </td>
+            <td>{{ sig.source }}</td>
+            <td><code>{{ sig.evidence_class }}</code></td>
+            <td>{{ "%.3f"|format(sig.normalized_value) }}</td>
+            <td>{{ "%.2f"|format(sig.confidence) }}</td>
+            <td>{{ sig.published_at.strftime('%Y-%m-%d') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="sources-empty">
+        No signals are recorded for this reading. This is unusual; if
+        the dashboard shows axes populated while this page is empty,
+        the reading and the source list are out of sync &mdash; treat
+        the reading with caution and check
+        <code>data/history.jsonl</code> for the last consistent state.
+      </p>
+      {% endif %}
+    </section>
+
+    <section class="sources-honesty">
+      <h2>Honesty notes</h2>
+      <ul>
+        <li>
+          Signal lists are not necessarily complete: a signal can be
+          present in the corpus and still fail a gate (e.g.,
+          <code>RoadmapWeightCapGate</code>, <code>StaleSignalGate</code>)
+          such that its contribution is capped or decayed. The
+          <a href="dashboard.html">dashboard</a> records which gates
+          fired in this reading.
+        </li>
+        <li>
+          Reversals are recorded with the same prominence as advances.
+          A signal that previously contributed and was later retracted
+          remains in <code>data/history.jsonl</code>; nothing is
+          rewritten.
+        </li>
+        <li>
+          This reading uses only public evidence. Classified
+          intelligence about quantum-hardware programs is out of scope
+          and not represented here.
+        </li>
+      </ul>
+    </section>
+
+    <section class="links">
+      <p>
+        <a href="index.html">Back to the clock</a> &middot;
+        <a href="dashboard.html">Dashboard</a> &middot;
+        <a href="methodology.html">Methodology</a> &middot;
+        <a href="about.html">About</a>
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p>This is a reading of public evidence about quantum-computing progress; it is not a prediction, a probability, or financial / security advice.</p>
+    <p>Source / methodology: <a href="{{ state.methodology_url }}">{{ state.methodology_url }}</a></p>
+  </footer>
+</body>
+</html>

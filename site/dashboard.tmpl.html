@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard — Q-day Clock</title>
+  <meta name="description" content="Five-axis dashboard of the public evidence currently feeding the Q-day Clock reading. Shows per-axis readings, contributing signals, gates fired, and the GRI baseline anchor.">
+  <link rel="stylesheet" href="assets/clock.css">
+</head>
+<body>
+  <header>
+    <h1>Dashboard</h1>
+    <p class="tagline">The five axes feeding the current reading. This is a reading, not a prediction.</p>
+    <p><a href="index.html">&larr; Back to the clock</a></p>
+  </header>
+
+  <main>
+    <section class="dashboard-summary">
+      <h2>Current reading</h2>
+      <table class="dashboard-readout">
+        <tbody>
+          <tr>
+            <th scope="row">Clock face</th>
+            <td>{{ "%02d:%02d"|format(hours, minutes) }} on a 24-hour Q-day face</td>
+          </tr>
+          <tr>
+            <th scope="row">Clock score</th>
+            <td>{{ "%.4f"|format(state.clock_score) }} in [0, 1]</td>
+          </tr>
+          <tr>
+            <th scope="row">Confidence band (hours)</th>
+            <td>{{ "%.2f"|format(state.confidence_band_hours_low) }} &ndash; {{ "%.2f"|format(state.confidence_band_hours_high) }}</td>
+          </tr>
+          <tr>
+            <th scope="row">GRI baseline anchor</th>
+            <td>{{ state.gri_baseline_label }}</td>
+          </tr>
+          <tr>
+            <th scope="row">Generated</th>
+            <td>{{ state.generated_at.strftime('%Y-%m-%d %H:%M UTC') }}</td>
+          </tr>
+          <tr>
+            <th scope="row">Schema version</th>
+            <td>{{ state.version }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="dashboard-axes" aria-labelledby="axes-heading">
+      <h2 id="axes-heading">Axis readings</h2>
+      <p>
+        Each axis is a normalized reading in <code>[0, 1]</code>, where
+        <code>0</code> is far and <code>1</code> is imminent. Axis 5
+        (PQC migration) is an inverse axis: more PQC adoption pushes the
+        clock back. Weights and combination rules are documented in the
+        <a href="methodology.html">methodology</a>.
+      </p>
+
+      <table class="axes-table">
+        <caption>Per-axis reading, weight, and confidence band</caption>
+        <thead>
+          <tr>
+            <th scope="col">Axis</th>
+            <th scope="col">Weight</th>
+            <th scope="col">Reading</th>
+            <th scope="col">Band (low &ndash; high)</th>
+            <th scope="col">Signals</th>
+            <th scope="col">Independent sources</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in axis_rows %}
+          <tr>
+            <th scope="row">{{ row.label }}</th>
+            <td>{{ "%.2f"|format(row.weight) }}{% if row.is_inverse %} (inverse){% endif %}</td>
+            <td>{{ "%.4f"|format(row.reading.reading) }}</td>
+            <td>{{ "%.4f"|format(row.reading.confidence_band_low) }} &ndash; {{ "%.4f"|format(row.reading.confidence_band_high) }}</td>
+            <td>{{ row.reading.contributing_signal_ids | length }}</td>
+            <td>{{ row.reading.n_independent_sources }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% for row in axis_rows %}
+      <details class="axis-drilldown">
+        <summary>{{ row.label }} &mdash; contributing signals ({{ row.reading.contributing_signal_ids | length }})</summary>
+        {% if row.reading.note %}
+        <p class="axis-note"><em>Note:</em> {{ row.reading.note }}</p>
+        {% endif %}
+        {% if row.reading.contributing_signal_ids %}
+        <ul class="signal-id-list">
+          {% for sid in row.reading.contributing_signal_ids %}
+          <li><code>{{ sid }}</code> &mdash; <a href="sources.html#{{ sid }}">provenance</a></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="axis-empty">No signals contributed to this axis at the current reading (cold-start fallback applied).</p>
+        {% endif %}
+      </details>
+      {% endfor %}
+    </section>
+
+    <section class="dashboard-gates" aria-labelledby="gates-heading">
+      <h2 id="gates-heading">Gates fired this reading</h2>
+      <p>
+        Goodhart-aware gates are a contract, not a knob. When a gate
+        fires it caps, decays, or rejects a signal contribution; this
+        is recorded here and in the signed <code>clock_state.json</code>.
+        Gate semantics are in <a href="methodology.html">methodology</a>.
+      </p>
+      {% if state.gates_fired %}
+      <table class="gates-table">
+        <caption>Gate fires recorded in this reading</caption>
+        <thead>
+          <tr>
+            <th scope="col">Gate</th>
+            <th scope="col">Target</th>
+            <th scope="col">Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in state.gates_fired %}
+          <tr>
+            <td><code>{{ g.name }}</code></td>
+            <td>{{ g.target | default("&mdash;") | safe }}</td>
+            <td>{{ g.reason | default("&mdash;") | safe }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="gates-empty">No gates fired in this reading.</p>
+      {% endif %}
+    </section>
+
+    <section class="dashboard-mosca" aria-labelledby="mosca-heading">
+      <h2 id="mosca-heading">Mosca's inequality</h2>
+      <p>
+        Mosca's inequality frames the migration question as
+        <code>x + y &lt; z</code>, where:
+      </p>
+      <ul>
+        <li><strong>x</strong> &mdash; how long you need your data to remain confidential (years).</li>
+        <li><strong>y</strong> &mdash; how long it will take to migrate to PQC (years).</li>
+        <li><strong>z</strong> &mdash; how long until a CRQC arrives (years).</li>
+      </ul>
+      <p>
+        If <code>x + y &gt;= z</code>, harvest-now-decrypt-later attacks
+        affect data you protect today. The Q-day Clock supplies a
+        reading-shaped view of <code>z</code>; <code>x</code> and
+        <code>y</code> are properties of your environment. This page does
+        not compute a probability or a calendar date.
+      </p>
+      <p class="mosca-anchor">
+        GRI baseline median for <code>z</code> (informational, not the
+        clock reading): <strong>{{ state.gri_baseline_label }}</strong>.
+      </p>
+    </section>
+
+    <section class="links">
+      <p>
+        <a href="index.html">Back to the clock</a> &middot;
+        <a href="sources.html">Sources</a> &middot;
+        <a href="methodology.html">Methodology</a> &middot;
+        <a href="about.html">About</a>
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p>This is a reading of public evidence about quantum-computing progress; it is not a prediction, a probability, or financial / security advice.</p>
+    <p>Source / methodology: <a href="{{ state.methodology_url }}">{{ state.methodology_url }}</a></p>
+  </footer>
+</body>
+</html>

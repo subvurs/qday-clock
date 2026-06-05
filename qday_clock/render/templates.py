@@ -12,8 +12,20 @@ from typing import Any
 
 import jinja2
 
-from qday_clock.core.schemas import ClockState
+from qday_clock.core.schemas import AxisId, ClockState, Signal
 from qday_clock.render.svg_clock import render_svg
+
+
+# Human-readable labels for the 5 axes. Kept here (next to the renderer)
+# so the dashboard / sources templates stay declarative and the
+# templates themselves don't pin axis-naming policy.
+_AXIS_LABELS: dict[str, str] = {
+    AxisId.LOGICAL_QUBITS.value: "Axis 1 — Logical qubit progress",
+    AxisId.PHYSICAL_SCALING.value: "Axis 2 — Physical qubit scaling",
+    AxisId.RESOURCE_ESTIMATE.value: "Axis 3 — Algorithmic / resource estimate",
+    AxisId.ERROR_RATE.value: "Axis 4 — Error-rate floor",
+    AxisId.PQC_MIGRATION.value: "Axis 5 — PQC migration (inverse)",
+}
 
 _DEFAULT_TEMPLATE_DIR = Path(__file__).resolve().parent.parent.parent / "site"
 
@@ -70,6 +82,95 @@ def render_about(
     env = _env(template_dir)
     tmpl = env.get_template("about.tmpl.html")
     return tmpl.render(pubkey_b64=pubkey_b64)
+
+
+def render_dashboard(
+    state: ClockState,
+    template_dir: Path | None = None,
+) -> str:
+    """Render the 5-axis dashboard page.
+
+    Per plan §E: per-axis reading + contributing-signal-ID drill-down +
+    GRI baseline overlay + Mosca-inequality informational panel +
+    gates-fired log. JS is optional; the page renders fully without
+    it (drill-downs use ``<details>``).
+    """
+    template_dir = template_dir or _DEFAULT_TEMPLATE_DIR
+    env = _env(template_dir)
+    tmpl = env.get_template("dashboard.tmpl.html")
+
+    # Per-axis row table — preserve AxisId enum order so the four
+    # forward-contributing axes (1-4) show before the inverse axis (5).
+    axis_rows: list[dict[str, Any]] = []
+    for axis in AxisId:
+        reading = state.axes.get(axis.value)
+        if reading is None:
+            continue
+        weight_attr = {
+            AxisId.LOGICAL_QUBITS.value: "logical_qubits",
+            AxisId.PHYSICAL_SCALING.value: "physical_scaling",
+            AxisId.RESOURCE_ESTIMATE.value: "resource_estimate",
+            AxisId.ERROR_RATE.value: "error_rate",
+            AxisId.PQC_MIGRATION.value: "pqc_subtraction",
+        }[axis.value]
+        axis_rows.append(
+            {
+                "label": _AXIS_LABELS[axis.value],
+                "reading": reading,
+                "weight": getattr(state.weights, weight_attr),
+                "is_inverse": axis is AxisId.PQC_MIGRATION,
+            }
+        )
+
+    return tmpl.render(
+        state=state,
+        axis_rows=axis_rows,
+        hours=int(state.clock_hours),
+        minutes=int((state.clock_hours - int(state.clock_hours)) * 60),
+    )
+
+
+def render_sources(
+    state: ClockState,
+    signals: list[Signal],
+    template_dir: Path | None = None,
+) -> str:
+    """Render the per-signal provenance page.
+
+    ``signals`` is the explicit list to render; callers pass in the
+    same signal corpus that fed ``compute_clock_state``. We do not
+    pull signals out of ``ClockState`` because the state only carries
+    signal IDs (per the signed-artifact contract — keeping the state
+    compact); the full signal records live in the ingest layer.
+    """
+    template_dir = template_dir or _DEFAULT_TEMPLATE_DIR
+    env = _env(template_dir)
+    tmpl = env.get_template("sources.tmpl.html")
+
+    signal_rows: list[dict[str, Any]] = []
+    # Deterministic order: (axis, -normalized_value, signal_id) so the
+    # highest-impact signals per axis surface first.
+    sorted_signals = sorted(
+        signals,
+        key=lambda s: (s.axis.value, -s.normalized_value, s.signal_id),
+    )
+    for sig in sorted_signals:
+        signal_rows.append(
+            {
+                "signal_id": sig.signal_id,
+                "axis_label": _AXIS_LABELS.get(sig.axis.value, sig.axis.value),
+                "title": sig.title,
+                "summary": sig.summary,
+                "source": sig.source,
+                "url": sig.url,
+                "published_at": sig.published_at,
+                "evidence_class": sig.evidence_class.value,
+                "normalized_value": sig.normalized_value,
+                "confidence": sig.confidence,
+            }
+        )
+
+    return tmpl.render(state=state, signal_rows=signal_rows)
 
 
 def _verbal_reading(state: ClockState) -> str:

@@ -371,11 +371,69 @@ with project-specific sections for `Gate fires` and `Reversals`.
   pre-gate path (no triggering pathology, no verdict), v0.2 anchors
   the gate-reachable path (designed pathologies, verdicts recorded).
 
+### Added — Path C: v0.2 UI layer (`dashboard.html` + `sources.html`)
+- `site/dashboard.tmpl.html` — 5-axis dashboard with:
+  - per-axis reading + weight + confidence band + signal counts table,
+  - one `<details>` drill-down per axis listing
+    `contributing_signal_ids` and linking to the per-signal anchor on
+    `sources.html`,
+  - gates-fired table sourced from `state.gates_fired` (the same gate
+    records that the golden v0.2 fixture locks),
+  - Mosca's-inequality informational panel (no probability or
+    calendar-date framing — informational, anchored to the GRI
+    baseline as the only stated `z` reference),
+  - meta block: clock score, confidence band, GRI baseline,
+    generated-at timestamp, schema version.
+- `site/sources.tmpl.html` — per-signal provenance page with:
+  - rendered table keyed by `signal_id` (each row has
+    `id="{{ signal_id }}"` so `dashboard.html` anchor links resolve),
+  - explicit evidence-class tag per signal (`hardware`, `roadmap`,
+    `policy`, etc.) matching CLAUDE.md §3,
+  - URL-bearing signals link to the underlying article;
+    URL-less signals render plain titles,
+  - empty-signal-list path renders an honesty notice
+    rather than a blank page (CLAUDE.md §8).
+- `qday_clock/render/templates.py`:
+  - new `render_dashboard(state, template_dir=None)` and
+    `render_sources(state, signals, template_dir=None)` following the
+    existing `render_index` / `render_methodology` / `render_about`
+    contract (Jinja2 `StrictUndefined`, file loader rooted at `site/`),
+  - per-axis labels centralized in module-level `_AXIS_LABELS` so the
+    templates stay declarative,
+  - `render_sources` sorts by `(axis, -normalized_value, signal_id)`
+    for deterministic output — important for forever-deterministic
+    rendering and for diffing future readings.
+- `tests/render/test_jinja_smoke.py`:
+  - `test_render_dashboard_smoke` — asserts all 5 axes render, PQC
+    axis is flagged as inverse, Mosca panel present,
+    `sources.html#…` drill-down anchors emitted.
+  - `test_render_sources_smoke` — asserts each signal renders with
+    its ID anchor, evidence-class tag is visible, URL-bearing signals
+    get a link.
+  - `test_render_sources_handles_empty_signal_list` — guards the
+    honesty-notice path so a future regression doesn't silently
+    render a blank sources page.
+- `tests/test_forbidden_language.py` extended to lint
+  `site/dashboard.tmpl.html` and `site/sources.tmpl.html` against the
+  prediction / marketing-language pattern set.
+
+### Verification — Path C (v0.2 UI layer)
+- `python3 -m pytest tests/` — **218 passed** (was 213; +3 render
+  smokes + 2 forbidden-language lint cases).
+- v0.1 and v0.2 golden replays still hash-locked
+  (`aa5a8c11…` and `9d20017e…` unchanged).
+- Forbidden-language lint passes on both new templates without any
+  allow-list additions (the templates use "this is a reading, not a
+  prediction" phrasing, which is already in `ALLOW_CONTEXTS`).
+
 ### Path C — what's still deferred (still v0.2)
 - Curator-side workflow that publishes the signed manifest as a
   release artifact (still v0.2 — Path B section above).
 - Daily cron in `refresh.yml`.
-- `dashboard.html` + `sources.html` (UI layer; v0.2 plan §C).
+- A pipeline wire-up that emits `dashboard.html` + `sources.html` from
+  the same `compute_clock_state` run that produces
+  `data/clock_state.json` (the templates and renderers are live; only
+  the build-step entry point is unwritten).
 
 ## [0.1.0] — MVP scaffold
 

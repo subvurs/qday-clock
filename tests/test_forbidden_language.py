@@ -28,6 +28,8 @@ PUBLIC_FILES = (
     REPO_ROOT / "site" / "index.tmpl.html",
     REPO_ROOT / "site" / "methodology.tmpl.html",
     REPO_ROOT / "site" / "about.tmpl.html",
+    REPO_ROOT / "site" / "dashboard.tmpl.html",
+    REPO_ROOT / "site" / "sources.tmpl.html",
     REPO_ROOT / "METHODOLOGY.md",
     REPO_ROOT / "README.md",
     REPO_ROOT / "THREAT_MODEL.md",

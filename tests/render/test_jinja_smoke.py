@@ -22,12 +22,16 @@ from qday_clock.core.schemas import (
     AxisId,
     AxisReading,
     ClockState,
+    EvidenceClass,
     RubricWeights,
+    Signal,
 )
 from qday_clock.render.templates import (
     render_about,
+    render_dashboard,
     render_index,
     render_methodology,
+    render_sources,
 )
 
 
@@ -58,6 +62,40 @@ def _stub_state() -> ClockState:
     )
 
 
+def _stub_signals() -> list[Signal]:
+    """A small mixed-axis signal set for sources/dashboard smoke."""
+    return [
+        Signal(
+            signal_id="sigA",
+            axis=AxisId.LOGICAL_QUBITS,
+            title="Distance-11 logical qubit demo",
+            summary="Surface-code distance-11 demo on Heron-class hardware.",
+            source="vendor-A-paper",
+            url="https://example.invalid/sigA",
+            published_at=datetime(2025, 12, 1, tzinfo=timezone.utc),
+            observed_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            evidence_class=EvidenceClass.HARDWARE,
+            raw_value=11.0,
+            normalized_value=0.55,
+            confidence=0.95,
+        ),
+        Signal(
+            signal_id="sigB",
+            axis=AxisId.PQC_MIGRATION,
+            title="NSA CNSA 2.0 software-ready milestone",
+            summary="CNSA 2.0 software-supports requirement in force.",
+            source="nsa-policy-statement",
+            url=None,
+            published_at=datetime(2025, 9, 1, tzinfo=timezone.utc),
+            observed_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            evidence_class=EvidenceClass.POLICY,
+            raw_value=1.0,
+            normalized_value=0.5,
+            confidence=1.0,
+        ),
+    ]
+
+
 def test_render_index_smoke() -> None:
     state = _stub_state()
     html = render_index(state)
@@ -80,6 +118,51 @@ def test_render_about_embeds_pubkey() -> None:
     fake_pubkey_b64 = "MCowBQYDK2VwAyEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     html = render_about(pubkey_b64=fake_pubkey_b64)
     assert fake_pubkey_b64 in html
+
+
+def test_render_dashboard_smoke() -> None:
+    state = _stub_state()
+    html = render_dashboard(state)
+    # 5 axes must each get a row in the readings table.
+    for label in (
+        "Axis 1",
+        "Axis 2",
+        "Axis 3",
+        "Axis 4",
+        "Axis 5",
+    ):
+        assert label in html, f"dashboard missing {label}"
+    # PQC axis must be flagged as inverse in the dashboard.
+    assert "inverse" in html
+    # Mosca's inequality section must be present (informational, not a probability).
+    assert "Mosca" in html
+    # Drill-down anchors for sources should be present.
+    assert 'sources.html#' in html
+
+
+def test_render_sources_smoke() -> None:
+    state = _stub_state()
+    signals = _stub_signals()
+    html = render_sources(state, signals)
+    # Each signal must appear by ID and the row anchor must exist.
+    for sig in signals:
+        assert sig.signal_id in html
+        assert f'id="{sig.signal_id}"' in html
+    # Evidence-class tags must be rendered for both shipped classes.
+    assert "hardware" in html
+    assert "policy" in html
+    # URL-bearing signal renders an anchor; URL-less signal renders plain title.
+    assert "https://example.invalid/sigA" in html
+    assert "NSA CNSA 2.0 software-ready milestone" in html
+
+
+def test_render_sources_handles_empty_signal_list() -> None:
+    """Per CLAUDE.md §8, the empty-signals path must surface, not hide."""
+    state = _stub_state()
+    html = render_sources(state, signals=[])
+    assert "No signals are recorded" in html
+    # Reading-context block must still render so the page is not blank.
+    assert state.gri_baseline_label in html
 
 
 def test_strict_undefined_catches_missing_vars(tmp_path) -> None:

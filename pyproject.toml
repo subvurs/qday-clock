@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qday-clock"
+version = "0.1.0"
+description = "Evidence-driven Q-day reading: how close are cryptographically-relevant quantum computers (CRQCs)?"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Mark Eatherly" }]
+requires-python = ">=3.11"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security :: Cryptography",
+]
+dependencies = [
+    "pydantic>=2.5",
+    "cryptography>=42",
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+qday-clock = "qday_clock.__main__:main"
+
+[tool.setuptools]
+packages = [
+    "qday_clock",
+    "qday_clock.core",
+    "qday_clock.ingest",
+    "qday_clock.extract",
+    "qday_clock.score",
+    "qday_clock.render",
+    "qday_clock.verify",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "W"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_configs = true

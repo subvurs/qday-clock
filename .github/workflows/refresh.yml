@@ -1,0 +1,140 @@
+name: refresh
+
+# Daily clock refresh — recompute `site/data/clock_state.json` from
+# current signals and open a PR for human review. Per plan §F we never
+# auto-publish; the PR is the human-in-the-loop gate.
+#
+# v0.1.0 status (workflow_dispatch only):
+#   * Curator manifest publishing is not yet wired on the Curator side.
+#     Until the Curator repo publishes a signed manifest artifact, this
+#     workflow runs on seeds + GRI baseline only.
+#   * The daily cron entry below is commented-out intentionally. v0.2
+#     uncomments it once an upstream artifact is reliable.
+#   * Manual `workflow_dispatch` lets a human trigger a refresh + PR.
+
+on:
+  workflow_dispatch:
+    inputs:
+      curator_manifest_url:
+        description: >-
+          (Optional) HTTPS URL of a signed Curator manifest JSON to
+          download and feed through fetch_manifest. Leave blank for a
+          seeds-only refresh.
+        required: false
+        type: string
+  # schedule:
+  #   - cron: "0 8 * * *"   # v0.2: enable when Curator artifact lands
+
+permissions:
+  contents: write
+  pull-requests: write
+
+defaults:
+  run:
+    working-directory: public_interest/qday_clock
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Q-day Clock
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Fetch Curator manifest (optional)
+        id: fetch
+        if: ${{ inputs.curator_manifest_url != '' }}
+        run: |
+          mkdir -p _refresh
+          curl -fSL --retry 3 \
+            "${{ inputs.curator_manifest_url }}" \
+            -o _refresh/curator_manifest.json
+          ls -la _refresh/
+
+      - name: Recompute clock_state.json
+        env:
+          QDAY_PINNED_PUBKEY_B64: ${{ secrets.QDAY_CURATOR_PUBKEY_B64 }}
+        run: |
+          # The refresh CLI is post-MVP; until it lands, we drive the
+          # pipeline directly via a small inline script. Per CLAUDE.md
+          # §8 every failure mode raises rather than being swallowed.
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          from qday_clock.core.canonical import canonicalize
+          from qday_clock.ingest.seed_signals import load_seed_signals
+          from qday_clock.score.clock import compute_clock_state
+
+          observed_at = datetime.now(tz=timezone.utc)
+          signals = load_seed_signals(Path("data/seed_signals.json"))
+
+          manifest_path = Path("_refresh/curator_manifest.json")
+          if manifest_path.exists():
+              from qday_clock.extract.classifier import classify_manifest
+              from qday_clock.ingest.curator_client import fetch_manifest
+
+              pinned = os.environ.get("QDAY_PINNED_PUBKEY_B64") or None
+              m = fetch_manifest(manifest_path, expected_pubkey=pinned)
+              signals = signals + classify_manifest(m, observed_at=observed_at)
+              print(f"refresh: ingested manifest with {len(m.articles)} articles, "
+                    f"commit={m.curator_commit[:12]}")
+          else:
+              print("refresh: no manifest URL provided; seeds-only refresh")
+
+          state = compute_clock_state(signals)
+          out = Path("site/data/clock_state.json")
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(
+              json.dumps(json.loads(canonicalize(state.model_dump(mode='json'))), indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(f"refresh: wrote {out} "
+                f"clock_score={state.clock_score:.4f} "
+                f"clock_hours={state.clock_hours:.2f}")
+          PY
+
+      - name: Diff vs current site/data
+        id: diff
+        run: |
+          if git diff --quiet site/data/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No change to site/data; nothing to PR."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git --no-pager diff --stat site/data/
+          fi
+
+      - name: Open refresh PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "refresh: recompute clock_state.json"
+          branch: data/auto-refresh
+          delete-branch: true
+          title: "refresh: clock_state.json update"
+          body: |
+            Automated refresh of `site/data/clock_state.json`.
+
+            Per plan §F we never auto-publish — this PR is the
+            human-in-the-loop gate. Review:
+
+            * Did any axis move > 0.05?
+            * Did any gate fire? (see `gates_fired` in the JSON)
+            * Does CHANGELOG need a `Gate fires` or `Reversals` entry?
+            * Were sources added/removed since the last refresh?
+          labels: |
+            refresh
+            requires-review

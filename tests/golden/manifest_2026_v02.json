@@ -1,0 +1,136 @@
+{
+  "version": "1.0",
+  "fixture_id": "golden_2026_v02",
+  "description": "Locked golden input fixture for v0.2 gate-fire paths. Exercises all 5 axes plus deterministic fires of RoadmapWeightCapGate (one roadmap signal at normalized=0.9 > cap=0.3) and StaleSignalGate (one signal at published_at 2024-06-01, ~730 days before observed_at 2026-06-01, lands in the [540, 1080] day decay window). Companion to manifest_2026_q1.json: q1 locks v0.1 pre-gate scoring; v02 locks v0.2 gate-reachable scoring. Per CLAUDE.md \u00a74 and \u00a77, hash-locked; drift requires a CHANGELOG entry.",
+  "generated_at": "2026-06-01T00:00:00+00:00",
+  "observed_at": "2026-06-01T00:00:00+00:00",
+  "gri_baseline": {
+    "survey_year": 2024,
+    "median_crqc_year": 2034,
+    "label": "GRI 2024 - median CRQC arrival ~ 2034",
+    "source": "Global Risk Institute, Quantum Threat Timeline 2024"
+  },
+  "signals": [
+    {
+      "axis": "logical_qubits",
+      "title": "Distance-11 surface code logical qubit on Heron-class hardware",
+      "summary": "Distance-11 surface code logical qubit; logical lifetime exceeds physical T1 by 35x on superconducting hardware.",
+      "source": "vendor-A-paper",
+      "url": "https://example.invalid/v02-d11",
+      "published_at": "2025-12-01T00:00:00+00:00",
+      "evidence_class": "hardware",
+      "raw_value": 11.0,
+      "normalized_value": 0.55,
+      "confidence": 0.95
+    },
+    {
+      "axis": "logical_qubits",
+      "title": "Distance-7 surface code with sustained logical lifetime",
+      "summary": "Distance-7 surface code logical qubit with sustained suppression across multiple syndrome rounds.",
+      "source": "vendor-B-paper",
+      "url": "https://example.invalid/v02-d7",
+      "published_at": "2025-08-15T00:00:00+00:00",
+      "evidence_class": "hardware",
+      "raw_value": 7.0,
+      "normalized_value": 0.45,
+      "confidence": 1.0
+    },
+    {
+      "axis": "logical_qubits",
+      "title": "Roadmap: 1000 logical qubits by 2030",
+      "summary": "Vendor C announces five-year roadmap targeting 1000 logical qubits on a Kookaburra-class processor by 2030. No measured hardware demonstration accompanies the roadmap.",
+      "source": "vendor-C-blog",
+      "url": "https://example.invalid/v02-roadmap",
+      "published_at": "2026-03-15T00:00:00+00:00",
+      "evidence_class": "roadmap",
+      "raw_value": 1000.0,
+      "normalized_value": 0.9,
+      "confidence": 1.0
+    },
+    {
+      "axis": "logical_qubits",
+      "title": "Distance-3 surface code archival demo",
+      "summary": "Historical distance-3 surface code logical qubit demonstration; included to exercise StaleSignalGate at ~24 months age.",
+      "source": "vendor-D-paper",
+      "url": "https://example.invalid/v02-d3-stale",
+      "published_at": "2024-06-01T00:00:00+00:00",
+      "observed_at": "2024-06-01T00:00:00+00:00",
+      "evidence_class": "hardware",
+      "raw_value": 3.0,
+      "normalized_value": 0.05,
+      "confidence": 0.9
+    },
+    {
+      "axis": "physical_scaling",
+      "title": "Heron-class processor commissioning at 156 physical qubits",
+      "summary": "Vendor commissioning of a 156-qubit Heron-class superconducting processor with measured median 2-qubit gate fidelity.",
+      "source": "vendor-E-paper",
+      "url": "https://example.invalid/v02-heron",
+      "published_at": "2025-11-01T00:00:00+00:00",
+      "evidence_class": "hardware",
+      "raw_value": 156.0,
+      "normalized_value": 0.2,
+      "confidence": 1.0
+    },
+    {
+      "axis": "physical_scaling",
+      "title": "Neutral-atom array at 1180 atoms with addressable single-qubit control",
+      "summary": "Neutral-atom hardware vendor demonstrates an 1180-atom array with single-qubit addressable rotations and measured loss rate.",
+      "source": "vendor-F-paper",
+      "url": "https://example.invalid/v02-na1180",
+      "published_at": "2025-10-15T00:00:00+00:00",
+      "evidence_class": "hardware",
+      "raw_value": 1180.0,
+      "normalized_value": 0.3,
+      "confidence": 1.0
+    },
+    {
+      "axis": "resource_estimate",
+      "title": "Refined RSA-2048 factoring estimate at ~1M physical qubits",
+      "summary": "Peer-reviewed resource estimate for Shor on RSA-2048 reduces the qubit budget below 1M while keeping wall-clock under 8 hours under standard surface-code assumptions.",
+      "source": "academic-team-G-paper",
+      "url": "https://example.invalid/v02-rsa-1m",
+      "published_at": "2025-04-01T00:00:00+00:00",
+      "evidence_class": "theory",
+      "raw_value": 1000000.0,
+      "normalized_value": 0.5,
+      "confidence": 0.9
+    },
+    {
+      "axis": "resource_estimate",
+      "title": "AES-128 Grover oracle cost refinement",
+      "summary": "Refined Grover-oracle cost estimate against AES-128 keeps post-quantum effective security in the 2^64 region; tracked as the AES sub-channel of the resource-estimate axis.",
+      "source": "academic-team-H-paper",
+      "url": "https://example.invalid/v02-aes",
+      "published_at": "2025-07-12T00:00:00+00:00",
+      "evidence_class": "theory",
+      "raw_value": 64.0,
+      "normalized_value": 0.3,
+      "confidence": 0.85
+    },
+    {
+      "axis": "error_rate",
+      "title": "Two-qubit gate fidelity 99.7% sustained across 100 qubits",
+      "summary": "Measured 2-qubit gate error 3e-3 (99.7% fidelity) sustained across 100 qubits on a Heron-class processor; below the surface-code threshold.",
+      "source": "vendor-I-paper",
+      "url": "https://example.invalid/v02-err",
+      "published_at": "2025-11-20T00:00:00+00:00",
+      "evidence_class": "hardware",
+      "raw_value": 0.003,
+      "normalized_value": 0.4,
+      "confidence": 1.0
+    },
+    {
+      "axis": "pqc_migration",
+      "title": "NSA CNSA 2.0 software-required date in force",
+      "summary": "NSA CNSA 2.0 'software supports CNSA 2.0' deadline reached; broad federal procurement now requires PQC-capable software.",
+      "source": "nsa-policy-statement",
+      "url": "https://example.invalid/v02-cnsa",
+      "published_at": "2025-09-01T00:00:00+00:00",
+      "evidence_class": "policy",
+      "raw_value": 1.0,
+      "normalized_value": 0.5,
+      "confidence": 1.0
+    }
+  ]
+}

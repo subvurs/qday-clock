@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "hash": "PLACEHOLDER_RECOMPUTE_AT_LOCK_TIME",
+  "thresholds": {
+    "comfortable_max_hours": 18.0,
+    "elevated_max_hours": 18.0,
+    "elevated_min_hours": 12.0,
+    "imminent_max_hours": 6.0,
+    "urgent_max_hours": 12.0,
+    "urgent_min_hours": 6.0
+  }
+}

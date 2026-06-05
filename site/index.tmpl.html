@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Q-day Clock — a reading of public CRQC evidence</title>
+  <meta name="description" content="An evidence-driven reading of how close cryptographically-relevant quantum computers are. Not a prediction.">
+  <link rel="stylesheet" href="assets/clock.css">
+</head>
+<body>
+  <header>
+    <h1>Q-day Clock</h1>
+    <p class="tagline">A reading of public evidence. Not a prediction.</p>
+  </header>
+
+  <main>
+    <section class="clock">
+      {{ clock_svg | safe }}
+    </section>
+
+    <section class="reading">
+      <p class="hour">{{ "%02d:%02d"|format(hours, minutes) }} on a 24-hour Q-day face</p>
+      <p class="verbal">{{ verbal_reading }}</p>
+    </section>
+
+    <section class="meta">
+      <ul>
+        <li><strong>Threat scope:</strong> RSA-2048 (Shor) + AES-128 weakening (Grover).</li>
+        <li><strong>Anchor:</strong> {{ state.gri_baseline_label }}.</li>
+        <li><strong>Updated:</strong> {{ state.generated_at.strftime('%Y-%m-%d %H:%M UTC') }}.</li>
+        <li><strong>Version:</strong> {{ state.version }}.</li>
+      </ul>
+    </section>
+
+    <section class="links">
+      <p><a href="methodology.html">Why this clock?</a> — read the methodology before drawing inferences.</p>
+      <p><a href="about.html">About, contact, signature verification.</a></p>
+    </section>
+  </main>
+
+  <footer>
+    <p>This is a reading of public evidence about quantum-computing progress; it is not a prediction, a probability, or financial / security advice.</p>
+    <p>Source / methodology: <a href="{{ state.methodology_url }}">{{ state.methodology_url }}</a></p>
+  </footer>
+</body>
+</html>

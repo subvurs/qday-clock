@@ -1,0 +1,68 @@
+name: pages-deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: public_interest/qday_clock
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Q-day Clock
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Render static site
+        env:
+          QDAY_PAGES_PUBKEY_B64: ${{ secrets.QDAY_PAGES_PUBKEY_B64 }}
+        run: |
+          python -m qday_clock.render.cli build --out _site
+        # The CLI builder is post-MVP; until then we fall back to the
+        # shipped site/ tree as-is. The fallback is intentional: it
+        # keeps deploys runnable while the render CLI is being wired.
+        continue-on-error: true
+
+      - name: Fallback — copy site/ tree directly if render CLI not yet wired
+        run: |
+          if [ ! -d _site ]; then
+            cp -R site _site
+          fi
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public_interest/qday_clock/_site
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

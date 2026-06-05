@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About — Q-day Clock</title>
+  <meta name="description" content="About the Q-day Clock, contact information, and Ed25519 signature-verification key.">
+  <link rel="stylesheet" href="assets/clock.css">
+</head>
+<body>
+  <header>
+    <h1>About</h1>
+    <p class="tagline">Who, why, and how to re-verify the signed clock state.</p>
+    <p><a href="index.html">&larr; Back to the clock</a></p>
+  </header>
+
+  <main>
+    <section class="about">
+      <h2>What this project is</h2>
+      <p>
+        The Q-day Clock is an independent reading of public evidence about
+        the arrival of cryptographically-relevant quantum computers
+        (CRQCs). The threat scope is explicitly limited to <strong>RSA-2048
+        via Shor</strong> and <strong>AES-128 weakening via Grover</strong>.
+        See <a href="methodology.html">methodology</a> for full details.
+      </p>
+
+      <h2>What this project is not</h2>
+      <ul>
+        <li>It is not a prediction or a calendar date.</li>
+        <li>It is not financial, security, or legal advice.</li>
+        <li>It is not affiliated with any quantum-hardware vendor, standards body, or government agency.</li>
+        <li>It does not include classified or intelligence-derived signals.</li>
+      </ul>
+
+      <h2>Re-verifying the clock state</h2>
+      <p>
+        Every published clock state in <code>data/clock_state.json</code>
+        is signed with Ed25519. The public key is embedded below and in
+        every signed artifact. Anyone can re-verify a clock state
+        independently by running:
+      </p>
+      <pre><code>python -m qday_clock.core.signing verify \
+    --payload site/data/clock_state.json</code></pre>
+
+      <h3>Signing public key (Ed25519, base64)</h3>
+      <pre class="pubkey"><code>{{ pubkey_b64 }}</code></pre>
+
+      <h2>Contact</h2>
+      <p>
+        Issues, corrections, and methodology feedback are welcome via the
+        project's source repository. Operator-curated signals and overrides
+        are themselves recorded with provenance in the signed manifest.
+      </p>
+
+      <h2>Disclaimers</h2>
+      <p>
+        Failures and reversals are recorded in the project CHANGELOG with
+        the same prominence as positive movements (per the project's
+        rigor policy on failure-reporting parity). If a gate fires or a
+        previously published reading is retracted, the original reading
+        is preserved in <code>data/history.jsonl</code>; nothing is
+        rewritten.
+      </p>
+    </section>
+
+    <section class="links">
+      <p><a href="index.html">Back to the clock</a> &middot; <a href="methodology.html">Methodology</a></p>
+    </section>
+  </main>
+
+  <footer>
+    <p>This is a reading of public evidence about quantum-computing progress; it is not a prediction, a probability, or financial / security advice.</p>
+  </footer>
+</body>
+</html>

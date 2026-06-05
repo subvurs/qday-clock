@@ -1,0 +1,266 @@
+/* Q-day Clock — accessible static stylesheet.
+ *
+ * Design goals:
+ *   - WCAG 2.1 AA target (per plan §E)
+ *   - Okabe-Ito + grayscale palette (color-blind safe)
+ *   - No external fonts, no analytics, no JS dependencies
+ *   - Works with JavaScript disabled (symbolic-clock page is static SVG)
+ *   - Readable at 200% browser zoom
+ *
+ * Palette:
+ *   #d55e00  Okabe-Ito vermillion  (clock hand, primary accent)
+ *   #0072b2  Okabe-Ito blue        (links)
+ *   #111111  near-black text
+ *   #555555  secondary label text
+ *   #f7f7f7  near-white background
+ *   #e4e4e4  rule / divider
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%;
+}
+
+body {
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+  max-width: 44rem;
+  background: #ffffff;
+  color: #111111;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+header {
+  border-bottom: 1px solid #e4e4e4;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+}
+
+header h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+header .tagline {
+  margin: 0;
+  color: #555555;
+  font-size: 1rem;
+}
+
+main {
+  display: block;
+}
+
+footer {
+  margin-top: 3rem;
+  border-top: 1px solid #e4e4e4;
+  padding-top: 1rem;
+  color: #555555;
+  font-size: 0.875rem;
+}
+
+a {
+  color: #0072b2;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a:hover,
+a:focus {
+  color: #d55e00;
+  outline-offset: 2px;
+}
+
+a:focus-visible {
+  outline: 2px solid #d55e00;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ---------- Clock landing page ---------- */
+
+section.clock {
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0 1.5rem;
+}
+
+section.clock svg {
+  max-width: 100%;
+  height: auto;
+}
+
+section.reading {
+  text-align: center;
+  margin: 0 0 2rem;
+}
+
+section.reading .hour {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  letter-spacing: 0.01em;
+}
+
+section.reading .verbal {
+  margin: 0 auto;
+  max-width: 36rem;
+  color: #333333;
+}
+
+section.meta {
+  margin: 0 0 2rem;
+  border: 1px solid #e4e4e4;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  background: #f7f7f7;
+}
+
+section.meta ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+section.meta li {
+  margin: 0.25rem 0;
+}
+
+section.links {
+  margin: 1.5rem 0 0;
+  font-size: 0.95rem;
+  color: #333333;
+}
+
+section.links p {
+  margin: 0.35rem 0;
+}
+
+/* ---------- Methodology page ---------- */
+
+section.methodology .callout {
+  border-left: 4px solid #d55e00;
+  background: #fff5ec;
+  padding: 0.75rem 1rem;
+  margin: 0 0 1.5rem;
+  color: #111111;
+}
+
+pre.methodology-body {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: #f7f7f7;
+  border: 1px solid #e4e4e4;
+  border-radius: 4px;
+  padding: 1rem;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: #111111;
+}
+
+/* ---------- About page ---------- */
+
+section.about h2 {
+  margin-top: 1.75rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+section.about h3 {
+  margin-top: 1.25rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+section.about code,
+section.about pre {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+section.about pre {
+  background: #f7f7f7;
+  border: 1px solid #e4e4e4;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 0.875rem;
+}
+
+section.about pre.pubkey {
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+/* ---------- Print ---------- */
+
+@media print {
+  body {
+    max-width: none;
+    color: #000000;
+  }
+  a {
+    color: #000000;
+    text-decoration: underline;
+  }
+  footer,
+  section.links {
+    color: #333333;
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- Dark mode (system preference) ---------- */
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #111111;
+    color: #f0f0f0;
+  }
+  header,
+  footer {
+    border-color: #333333;
+  }
+  header .tagline,
+  footer,
+  section.reading .verbal,
+  section.links {
+    color: #cccccc;
+  }
+  section.meta {
+    background: #1c1c1c;
+    border-color: #333333;
+  }
+  section.methodology .callout {
+    background: #2a1a0a;
+  }
+  pre.methodology-body,
+  section.about pre {
+    background: #1c1c1c;
+    border-color: #333333;
+    color: #f0f0f0;
+  }
+  a {
+    color: #56b4e9;  /* Okabe-Ito sky-blue, higher contrast on dark */
+  }
+  a:hover,
+  a:focus {
+    color: #f0e442;  /* Okabe-Ito yellow */
+  }
+}

@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: public_interest/qday_clock
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Q-day Clock + dev deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      - name: Lint (ruff)
+        run: ruff check qday_clock tests
+
+      - name: Format check (ruff format)
+        run: ruff format --check qday_clock tests
+
+      - name: Type check (mypy)
+        run: mypy qday_clock
+        # mypy is informational at MVP; never block the merge on it.
+        continue-on-error: true
+
+      - name: Unit + adversarial + golden tests
+        run: pytest tests/ -v
+
+      - name: Golden replay (re-derive locked hash)
+        run: |
+          python -m qday_clock.verify.replay \
+            --replay tests/golden/manifest_2026_q1.json
+
+      - name: Verify signed manifest (if present)
+        run: |
+          if [ -f site/data/clock_state.json ]; then
+            python -m qday_clock.verify.replay --check site/data/clock_state.json
+          else
+            echo "site/data/clock_state.json not yet generated — skipping check"
+          fi
+
+      - name: Forbidden-language lint (already covered by pytest, run again standalone for clarity)
+        run: pytest tests/test_forbidden_language.py -v

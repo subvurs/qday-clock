@@ -435,6 +435,97 @@ with project-specific sections for `Gate fires` and `Reversals`.
   `data/clock_state.json` (the templates and renderers are live; only
   the build-step entry point is unwritten).
 
+### Added — Path D: build-step entry point (`qday_clock.build`)
+- New module `qday_clock/build.py` wires the full pipeline
+  (ingest → score → sign → render) behind one function and one CLI:
+  - `BuildConfig` — dataclass: `site_dir`, `seed_signals_path`,
+    `methodology_path`, `signing_key_file`, `signing_key_b64_env`
+    (default `QDAY_SIGNING_KEY_B64`), `allow_ephemeral_key`, `now`,
+    `extra_signals`.
+  - `BuildReport` — dataclass: `state`, `canonical_sha256`,
+    `manifest_path`, `history_path`, `rendered_pages`,
+    `used_ephemeral_key`.
+  - `build_site(config)` — runs the full pipeline and emits all five
+    pages (`index.html`, `methodology.html`, `about.html`,
+    `dashboard.html`, `sources.html`) plus `data/clock_state.json`
+    (signed) and an appended line in `data/history.jsonl`.
+  - `main(argv)` — argparse CLI returning `0` on success and `1` on
+    a missing-signing-key fail-closed event. CLI flags mirror the
+    config fields; `--allow-ephemeral-key` is the documented escape
+    hatch for local dev / smoke runs.
+- **Fail-closed signing-key resolution order**, in priority:
+  1. `--signing-key-file` (accepts either raw 32 bytes OR base64-text
+     contents — `build.signing_key_file_bad_format` if neither).
+  2. `QDAY_SIGNING_KEY_B64` env var (base64).
+  3. Ephemeral key, **only** if `--allow-ephemeral-key` is set;
+     `BuildReport.used_ephemeral_key=True` surfaces this so a CI run
+     can refuse to publish ephemeral-signed artifacts.
+  4. Otherwise: `SignatureError(error_code="build.no_signing_key")`.
+- **Step-change gate path wired**: when a previous
+  `site/data/clock_state.json` already exists, `build_site` parses
+  its `axes` block into `previous_axes_readings` and passes it to
+  `compute_clock_state` so the MultiSourceConfirmationGate +
+  AntiStiffnessGate observers fire on day-over-day diffs. A
+  malformed previous state raises
+  `IngestError(error_code="build.previous_state_bad_json")` —
+  per CLAUDE.md §8, a corrupted artifact is not silently demoted to
+  a cold start (that would mask a real corruption event and disable
+  step-change gates without telling anyone).
+- **Render reads the signed payload back**, not the in-memory
+  `ClockState`. The renderer is fed `ClockState.model_validate(
+  signed_payload_without_sig_fields)` so the rendered footer can
+  never drift from the signed body's canonical-sha attestation in
+  about/dashboard pages.
+- New error codes (all carry `error_code` per existing pattern):
+  - `build.no_signing_key`
+  - `build.signing_key_file_missing`
+  - `build.signing_key_file_bad_format`
+  - `build.signing_key_env_bad_base64`
+  - `build.previous_state_bad_json`
+  - `build.previous_state_bad_shape`
+  - `build.methodology_missing`
+
+### Tests — Path D (build entry point)
+- New `tests/test_build.py` — **11 tests**, all green:
+  - `test_build_emits_all_pages_and_signed_manifest` — all five
+    pages land with >200 bytes; signature round-trips under embedded
+    pubkey; one history line; `used_ephemeral_key=True` surfaced.
+  - `test_dashboard_and_sources_reference_each_other` — regex pulls
+    every `sources.html#<id>` anchor from the rendered dashboard and
+    asserts a matching `id="<id>"` lives in the rendered sources
+    page (drill-down link consistency).
+  - `test_second_build_appends_history_and_reads_previous_state` —
+    two consecutive builds produce **two** history lines, not one
+    overwritten line; second build parses first build's
+    `clock_state.json` without error.
+  - `test_corrupt_previous_state_raises` — bad previous JSON →
+    `IngestError("build.previous_state_bad_json")`.
+  - `test_signing_key_missing_is_fail_closed` — no file, no env, no
+    ephemeral → `SignatureError("build.no_signing_key")`.
+  - `test_signing_key_from_env_b64` — env-var path; signed manifest
+    `signing_pubkey` matches the supplied key.
+  - `test_signing_key_from_file_raw_bytes` — file-path with raw 32
+    bytes; signed manifest `signing_pubkey` matches.
+  - `test_signing_key_file_bad_format_raises` →
+    `SignatureError("build.signing_key_file_bad_format")`.
+  - `test_missing_methodology_raises` →
+    `IngestError("build.methodology_missing")`.
+  - `test_cli_main_returns_zero_on_success` — CLI `main(argv)` with
+    `--allow-ephemeral-key` returns 0 and prints canonical sha + each
+    page name.
+  - `test_cli_main_returns_one_on_missing_key` — CLI without
+    ephemeral opt-in returns 1 and surfaces `build.no_signing_key`
+    on stderr.
+
+### Verification — Path D (build entry point)
+- `python3 -m pytest tests/test_build.py -x -q` — **11 passed**.
+- `python3 -m pytest tests/ -q` — **229 passed** (was 218; +11
+  build-entry-point tests).
+- v0.1 and v0.2 golden replays still hash-locked (`aa5a8c11…` and
+  `9d20017e…` unchanged — the new module is purely additive and the
+  golden replays go through `replay.py`, not the new build path).
+- Forbidden-language lint untouched.
+
 ## [0.1.0] — MVP scaffold
 
 ### Added

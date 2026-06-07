@@ -91,6 +91,26 @@ def test_build_emits_all_pages_and_signed_manifest(tmp_path: Path) -> None:
     assert report.used_ephemeral_key is True
 
 
+def test_rendered_pages_reference_assets_css(tmp_path: Path) -> None:
+    """Every rendered page must reference ``assets/clock.css``.
+
+    qday_clock.build does NOT copy site/assets/ — the deploy workflow
+    copies the assets tree alongside the rendered HTML. If a future
+    template change silently drops the stylesheet ``<link>``, the
+    deploy workflow would still ship assets but the pages would render
+    unstyled and no test would catch it. This guards the asset path
+    contract between the renderer and the deploy workflow.
+    """
+    config = _config(tmp_path)
+    build_site(config)
+    for name in _EXPECTED_PAGES:
+        body = (config.site_dir / name).read_text(encoding="utf-8")
+        assert "assets/clock.css" in body, (
+            f"{name} does not reference assets/clock.css — the deploy "
+            f"workflow stages assets/ for a reason; do not orphan it."
+        )
+
+
 def test_dashboard_and_sources_reference_each_other(tmp_path: Path) -> None:
     """The drill-down links in dashboard.html must point at anchors that
     actually exist in sources.html. v0.2.1 added the templates; this

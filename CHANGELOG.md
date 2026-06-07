@@ -526,6 +526,84 @@ with project-specific sections for `Gate fires` and `Reversals`.
   golden replays go through `replay.py`, not the new build path).
 - Forbidden-language lint untouched.
 
+### Added — Path E: deploy-workflow fix (`pages-deploy.yml`)
+Pre-v0.2.3 the deploy workflow was, in practice, broken:
+`Render static site` invoked `qday_clock.render.cli build` (which has
+never existed) with `continue-on-error: true`, then the fallback step
+ran `cp -R site _site` and uploaded the **raw Jinja templates** with
+`{{ }}` placeholders. Any push to `main` would have shipped an
+unrendered, unsigned site. This is a §8 silent-fallthrough hazard
+caught only because we sat down to actually deploy.
+
+Rewrite scope:
+- **Fail loud on missing signing-key secret** (new step
+  `Assert signing-key secret is present`). If
+  `secrets.QDAY_SIGNING_KEY_B64` is empty, the workflow exits 1 with a
+  human-readable error rather than silently degrading to an ephemeral
+  key (which would publish a different pubkey on every deploy and
+  break the "embed pubkey in about.html for re-verification" story).
+- **Real renderer invocation**: `python -m qday_clock.build
+  --site-dir _site --seed-signals data/seed_signals.json
+  --methodology METHODOLOGY.md` (the v0.2.2 entry point). The
+  signing key is passed through the environment via
+  `QDAY_SIGNING_KEY_B64`.
+- **Asset + CNAME staging**: explicit step copies `site/assets/`
+  and `site/CNAME` into `_site/`. The renderer deliberately doesn't
+  touch the asset tree (its job is HTML + signed manifest); the
+  workflow owns asset placement.
+- **Post-build verification step**: asserts that all 5 rendered
+  HTML files exist and are non-empty, and that
+  `_site/data/clock_state.json` exists, before the artifact is handed
+  to `actions/upload-pages-artifact`. Defence-in-depth against any
+  earlier step silently no-op'ing.
+- **Removed the `cp -R site _site` fallback** entirely. If the
+  build fails, the deploy fails. No silent success path.
+
+### Tests — Path E
+- New `tests/test_build.py::test_rendered_pages_reference_assets_css`
+  asserts every rendered page references `assets/clock.css`. This
+  guards the deploy contract: the workflow stages `site/assets/`
+  alongside the rendered HTML; if a future template change drops the
+  stylesheet link, the workflow would still ship the asset tree but
+  the pages would render unstyled and nothing else would catch it.
+
+### Verification — Path E
+- Local smoke of the exact CLI the workflow invokes:
+  ```
+  python3 -m qday_clock.build \
+    --site-dir /tmp/qday_test_site \
+    --seed-signals data/seed_signals.json \
+    --methodology METHODOLOGY.md \
+    --allow-ephemeral-key
+  ```
+  emits all 5 pages plus `data/{clock_state.json,history.jsonl}`;
+  followed by `cp -R site/assets _site/assets` + `cp site/CNAME
+  _site/CNAME`, the final tree contains every artifact GH Pages needs.
+  Canonical sha256 of the smoke run:
+  `7522f0bdc85e083ae517355a06c67e84b152d0a597405305c11f83398cc813c4`
+  (ephemeral-key — not a deploy attestation, just a smoke
+  reproducibility anchor).
+- `python3 -m pytest tests/ -q` — **230 passed** (was 229; +1
+  asset-ref guard).
+- v0.1 and v0.2 golden replays still hash-locked.
+
+### Path E — what's required from Mark before the first real deploy
+- **Repo secret `QDAY_SIGNING_KEY_B64`**: base64 of the 32 raw bytes
+  in `~/.config/qday_clock/signing_ed25519.key`. Generate locally
+  with `base64 -i ~/.config/qday_clock/signing_ed25519.key | tr -d
+  '\n'` and paste into the GH repo secret. Without this, the
+  workflow refuses to deploy.
+- **DNS for `icqubit.com`**: an A/AAAA or CNAME record pointing at
+  GitHub Pages (`<user>.github.io.`). The `site/CNAME` file is
+  staged by the workflow; DNS is the Mark-side half.
+- **Pages source = GitHub Actions** in repo Settings → Pages
+  (not "Deploy from a branch").
+
+### Path E — what's still deferred (still v0.2)
+- Curator-side workflow that publishes the signed manifest as a
+  release artifact (Path B section above).
+- Daily cron in `refresh.yml` (currently `workflow_dispatch`-only).
+
 ## [0.1.0] — MVP scaffold
 
 ### Added

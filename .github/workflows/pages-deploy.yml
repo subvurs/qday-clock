@@ -14,10 +14,6 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
-defaults:
-  run:
-    working-directory: public_interest/qday_clock
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -35,26 +31,68 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
+      # Fail loud (not silent) if the signing-key secret is not configured.
+      # Silently falling back to an ephemeral key would publish a different
+      # pubkey on every deploy — breaks the "embed in about.html so readers
+      # can re-verify clock_state.json" story. Per CLAUDE.md §8.
+      - name: Assert signing-key secret is present
+        env:
+          QDAY_SIGNING_KEY_B64: ${{ secrets.QDAY_SIGNING_KEY_B64 }}
+        run: |
+          if [ -z "${QDAY_SIGNING_KEY_B64}" ]; then
+            echo "ERROR: repo secret QDAY_SIGNING_KEY_B64 is not set." >&2
+            echo "ERROR: refusing to deploy with an ephemeral signing key." >&2
+            exit 1
+          fi
+          echo "QDAY_SIGNING_KEY_B64 is set (length=${#QDAY_SIGNING_KEY_B64})."
+
+      # The real renderer: ingest seed signals -> score (with all gates) ->
+      # sign clock_state.json -> render all 5 HTML pages into _site/. This
+      # is the qday_clock.build entry point added in v0.2.2.
       - name: Render static site
         env:
-          QDAY_PAGES_PUBKEY_B64: ${{ secrets.QDAY_PAGES_PUBKEY_B64 }}
+          QDAY_SIGNING_KEY_B64: ${{ secrets.QDAY_SIGNING_KEY_B64 }}
         run: |
-          python -m qday_clock.render.cli build --out _site
-        # The CLI builder is post-MVP; until then we fall back to the
-        # shipped site/ tree as-is. The fallback is intentional: it
-        # keeps deploys runnable while the render CLI is being wired.
-        continue-on-error: true
+          python -m qday_clock.build \
+            --site-dir _site \
+            --seed-signals data/seed_signals.json \
+            --methodology METHODOLOGY.md
 
-      - name: Fallback — copy site/ tree directly if render CLI not yet wired
+      # qday_clock.build deliberately does not copy site/assets/ (its job
+      # is to render pages + sign the manifest, not to manage static
+      # asset trees). The workflow owns asset + CNAME placement.
+      - name: Stage assets and CNAME
         run: |
-          if [ ! -d _site ]; then
-            cp -R site _site
+          if [ -d site/assets ]; then
+            cp -R site/assets _site/assets
           fi
+          if [ -f site/CNAME ]; then
+            cp site/CNAME _site/CNAME
+          fi
+
+      # Defence-in-depth: verify the build actually produced every page
+      # before we hand the artifact to actions/upload-pages-artifact. If
+      # something earlier silently no-op'd, fail here instead of shipping
+      # a half-rendered site.
+      - name: Verify rendered output
+        run: |
+          set -e
+          for page in index.html methodology.html about.html dashboard.html sources.html; do
+            if [ ! -s "_site/${page}" ]; then
+              echo "ERROR: _site/${page} missing or empty after build" >&2
+              exit 1
+            fi
+          done
+          if [ ! -s _site/data/clock_state.json ]; then
+            echo "ERROR: _site/data/clock_state.json missing or empty" >&2
+            exit 1
+          fi
+          echo "All 5 pages and signed clock_state.json present."
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: public_interest/qday_clock/_site
+          path: _site
 
   deploy:
     needs: build

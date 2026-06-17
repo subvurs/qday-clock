@@ -14,9 +14,8 @@ only assert the structural invariants:
 
 from __future__ import annotations
 
-import math
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -42,7 +41,7 @@ def _stub_state(hours: float) -> ClockState:
     axes = {a.value: axis_reading.model_copy(update={"axis": a}) for a in AxisId}
     return ClockState(
         version="0.1.0",
-        generated_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 4, 1, tzinfo=UTC),
         clock_score=1.0 - hours / 24.0,
         clock_hours=hours,
         confidence_band_hours_low=max(0.0, hours - 1.0),

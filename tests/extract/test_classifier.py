@@ -11,7 +11,7 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -48,13 +48,13 @@ def _article(
         url=f"https://example.org/{post_id}",
         source="Example Lab",
         topics=topics or ["hardware"],
-        published_at=published or datetime(2026, 5, 15, tzinfo=timezone.utc),
+        published_at=published or datetime(2026, 5, 15, tzinfo=UTC),
         relevance_score=relevance,
         summary=summary,
     )
 
 
-_FIXED_OBS = datetime(2026, 6, 1, tzinfo=timezone.utc)
+_FIXED_OBS = datetime(2026, 6, 1, tzinfo=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +187,7 @@ def test_classify_manifest_observed_at_default_uses_now(monkeypatch) -> None:
     signals = classify_manifest(m)
     assert len(signals) == 1
     # Just confirm tzinfo is UTC; we don't pin the absolute time here.
-    assert signals[0].observed_at.tzinfo == timezone.utc
+    assert signals[0].observed_at.tzinfo == UTC
 
 
 def test_classify_manifest_preserves_relevance_as_confidence() -> None:

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from qday_clock.score.gates import ContrastSaturationGate
 
-
 # ---------------------------------------------------------------------------
 # Over-cap signal fires
 # ---------------------------------------------------------------------------

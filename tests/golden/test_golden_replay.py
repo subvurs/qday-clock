@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -42,7 +42,6 @@ from qday_clock.ingest.seed_signals import _stable_signal_id
 from qday_clock.score.clock import compute_clock_state
 from qday_clock.score.gri_baseline import GRIBaseline
 
-
 FIXTURE_PATH = Path(__file__).resolve().parent / "manifest_2026_q1.json"
 
 # Locked expected canonical-hash of the unsigned ClockState body produced
@@ -51,9 +50,9 @@ FIXTURE_PATH = Path(__file__).resolve().parent / "manifest_2026_q1.json"
 #
 # To re-lock (only when CHANGELOG documents the change), set this to
 # ``None`` and run pytest with -s; the test will print the actual hash.
-EXPECTED_CANONICAL_HASH = (
-    "696887e1a72fbaada43940c0968a7b6a041f99b35b84d4b452bed7eb955a9caa"
-)  # re-locked in v0.2.4 after methodology_url rename to https://icqubit.com/methodology.html
+# re-locked in v0.2.4 after methodology_url rename to
+# https://icqubit.com/methodology.html
+EXPECTED_CANONICAL_HASH = "696887e1a72fbaada43940c0968a7b6a041f99b35b84d4b452bed7eb955a9caa"
 
 
 def _parse_dt(raw: str) -> datetime:
@@ -79,9 +78,7 @@ def _signals_from_fixture(fixture: dict, observed_at: datetime) -> list[Signal]:
         )
         out.append(
             Signal(
-                signal_id=_stable_signal_id(
-                    entry["source"], entry["title"], published_at
-                ),
+                signal_id=_stable_signal_id(entry["source"], entry["title"], published_at),
                 axis=AxisId(entry["axis"]),
                 title=entry["title"],
                 summary=entry["summary"],

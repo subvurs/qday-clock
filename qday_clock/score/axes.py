@@ -16,8 +16,8 @@ the same aggregate as if no gates ran.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Iterable
 
 from qday_clock.core.schemas import AxisId, AxisReading, Signal
 from qday_clock.score.gates import (
@@ -114,9 +114,7 @@ def aggregate_axis(
         )
 
     # Compute pre-cap source share and ask SingleSourceCapGate.
-    source_shares = {
-        src: contrib / total_weight for src, contrib in raw_per_source.items()
-    }
+    source_shares = {src: contrib / total_weight for src, contrib in raw_per_source.items()}
     source_multipliers: dict[str, float] = {src: 1.0 for src in source_shares}
     if source_cap_gate is not None:
         for src, share in source_shares.items():

@@ -28,7 +28,6 @@ from qday_clock.core.time import utcnow
 from qday_clock.score.axes import aggregate_axis
 from qday_clock.score.gates import (
     AntiStiffnessGate,
-    AxisStepProposal,
     ContrastSaturationGate,
     GateVerdict,
     MultiSourceConfirmationGate,
@@ -39,9 +38,10 @@ from qday_clock.score.gates import (
 from qday_clock.score.gri_baseline import (
     GRIBaseline,
     baseline_axis_floor,
+)
+from qday_clock.score.gri_baseline import (
     latest as latest_gri,
 )
-
 
 METHODOLOGY_URL = "https://icqubit.com/methodology.html"
 
@@ -165,11 +165,7 @@ def compute_clock_state(
     # Threshold guard runs *after* aggregation; its verdict is recorded
     # but does not modify the clock value. The CI step that asserts
     # locked thresholds is the actual enforcement point.
-    if (
-        apply_gates
-        and threshold_guard is not None
-        and threshold_lock_thresholds is not None
-    ):
+    if apply_gates and threshold_guard is not None and threshold_lock_thresholds is not None:
         all_verdicts.append(threshold_guard.check(threshold_lock_thresholds))
 
     # Combine axes 1-4 with weights; axis 5 subtracts.
@@ -191,19 +187,25 @@ def compute_clock_state(
     clock_hours = 24.0 * (1.0 - clock_score)
 
     # Confidence band on the clock face, mirroring the axes' bands.
+    a1 = axis_readings[AxisId.LOGICAL_QUBITS.value]
+    a2 = axis_readings[AxisId.PHYSICAL_SCALING.value]
+    a3 = axis_readings[AxisId.RESOURCE_ESTIMATE.value]
+    a4 = axis_readings[AxisId.ERROR_RATE.value]
+    a5_band = axis_readings[AxisId.PQC_MIGRATION.value]
+
     low_score = (
-        weights.logical_qubits * axis_readings[AxisId.LOGICAL_QUBITS.value].confidence_band_low
-        + weights.physical_scaling * axis_readings[AxisId.PHYSICAL_SCALING.value].confidence_band_low
-        + weights.resource_estimate * axis_readings[AxisId.RESOURCE_ESTIMATE.value].confidence_band_low
-        + weights.error_rate * axis_readings[AxisId.ERROR_RATE.value].confidence_band_low
-    ) - weights.pqc_subtraction * axis_readings[AxisId.PQC_MIGRATION.value].confidence_band_high
+        weights.logical_qubits * a1.confidence_band_low
+        + weights.physical_scaling * a2.confidence_band_low
+        + weights.resource_estimate * a3.confidence_band_low
+        + weights.error_rate * a4.confidence_band_low
+    ) - weights.pqc_subtraction * a5_band.confidence_band_high
 
     high_score = (
-        weights.logical_qubits * axis_readings[AxisId.LOGICAL_QUBITS.value].confidence_band_high
-        + weights.physical_scaling * axis_readings[AxisId.PHYSICAL_SCALING.value].confidence_band_high
-        + weights.resource_estimate * axis_readings[AxisId.RESOURCE_ESTIMATE.value].confidence_band_high
-        + weights.error_rate * axis_readings[AxisId.ERROR_RATE.value].confidence_band_high
-    ) - weights.pqc_subtraction * axis_readings[AxisId.PQC_MIGRATION.value].confidence_band_low
+        weights.logical_qubits * a1.confidence_band_high
+        + weights.physical_scaling * a2.confidence_band_high
+        + weights.resource_estimate * a3.confidence_band_high
+        + weights.error_rate * a4.confidence_band_high
+    ) - weights.pqc_subtraction * a5_band.confidence_band_low
 
     low_score = max(0.0, min(1.0, low_score))
     high_score = max(0.0, min(1.0, high_score))

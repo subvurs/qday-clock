@@ -8,8 +8,7 @@ time so that invalid state cannot reach the scoring pipeline.
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -20,7 +19,7 @@ from qday_clock.core.errors import SchemaError
 # ---------------------------------------------------------------------------
 
 
-class EvidenceClass(str, Enum):
+class EvidenceClass(StrEnum):
     """Per CLAUDE.md §3, every signal is tagged with its evidence class."""
 
     THEORY = "theory"
@@ -31,7 +30,7 @@ class EvidenceClass(str, Enum):
     SURVEY = "survey"
 
 
-class AxisId(str, Enum):
+class AxisId(StrEnum):
     """The five axes. v0.1.0 has Axis 1 live; others stubbed."""
 
     LOGICAL_QUBITS = "logical_qubits"
@@ -59,13 +58,21 @@ class Signal(BaseModel):
     axis: AxisId
     title: str
     summary: str
-    source: str = Field(..., description="Authoritative source identifier (publisher, vendor, journal)")
-    url: Optional[str] = None
+    source: str = Field(
+        ...,
+        description="Authoritative source identifier (publisher, vendor, journal)",
+    )
+    url: str | None = None
     published_at: datetime
     observed_at: datetime = Field(..., description="When this signal was ingested into the corpus")
     evidence_class: EvidenceClass
     raw_value: float = Field(..., description="Raw numeric extraction (e.g. qubit count, distance)")
-    normalized_value: float = Field(..., ge=0.0, le=1.0, description="Value mapped onto [0,1] per axis rubric")
+    normalized_value: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Value mapped onto [0,1] per axis rubric",
+    )
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
@@ -85,10 +92,10 @@ class AxisReading(BaseModel):
     n_independent_sources: int = Field(default=0, ge=0)
     confidence_band_low: float = Field(..., ge=0.0, le=1.0)
     confidence_band_high: float = Field(..., ge=0.0, le=1.0)
-    note: Optional[str] = None
+    note: str | None = None
 
     @model_validator(mode="after")
-    def _band_ordering(self) -> "AxisReading":
+    def _band_ordering(self) -> AxisReading:
         if self.confidence_band_low > self.confidence_band_high:
             raise SchemaError(
                 f"confidence_band_low ({self.confidence_band_low}) "
@@ -123,12 +130,9 @@ class RubricWeights(BaseModel):
     pqc_subtraction: float = Field(..., ge=0.0, le=1.0)
 
     @model_validator(mode="after")
-    def _sum_to_one(self) -> "RubricWeights":
+    def _sum_to_one(self) -> RubricWeights:
         total = (
-            self.logical_qubits
-            + self.physical_scaling
-            + self.resource_estimate
-            + self.error_rate
+            self.logical_qubits + self.physical_scaling + self.resource_estimate + self.error_rate
         )
         if abs(total - 1.0) > 1e-9:
             raise SchemaError(
@@ -138,7 +142,7 @@ class RubricWeights(BaseModel):
         return self
 
     @classmethod
-    def default(cls) -> "RubricWeights":
+    def default(cls) -> RubricWeights:
         """The MVP default weights documented in METHODOLOGY.md §4.
 
         Note: METHODOLOGY.md §4 documents weights 0.25 / 0.15 / 0.30 / 0.15
@@ -186,8 +190,8 @@ class ClockState(BaseModel):
     gri_baseline_label: str
     gates_fired: list[dict] = Field(default_factory=list)
     methodology_url: str
-    signature: Optional[str] = None
-    signing_pubkey: Optional[str] = None
+    signature: str | None = None
+    signing_pubkey: str | None = None
 
     @field_validator("axes")
     @classmethod
@@ -237,5 +241,5 @@ class CuratorManifest(BaseModel):
     curator_commit: str
     articles: list[CuratorArticleRef]
     db_row_counts: dict[str, int]
-    signature: Optional[str] = None
-    signing_pubkey: Optional[str] = None
+    signature: str | None = None
+    signing_pubkey: str | None = None

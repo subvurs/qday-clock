@@ -8,7 +8,7 @@ Validates that:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from qday_clock.core.schemas import AxisId, EvidenceClass, Signal
 from qday_clock.score.clock import compute_clock_state
@@ -21,7 +21,7 @@ def _sig(
     signal_id: str = "s1",
     evidence: EvidenceClass = EvidenceClass.HARDWARE,
 ) -> Signal:
-    now = datetime(2026, 5, 1, tzinfo=timezone.utc)
+    now = datetime(2026, 5, 1, tzinfo=UTC)
     return Signal(
         signal_id=signal_id,
         axis=axis,
@@ -50,18 +50,14 @@ def test_cold_start_uses_gri_floor() -> None:
 
 def test_logical_qubit_signal_moves_clock_earlier() -> None:
     cold = compute_clock_state(signals=[])
-    warm = compute_clock_state(
-        signals=[_sig(AxisId.LOGICAL_QUBITS, 1.0, signal_id="s_warm")]
-    )
+    warm = compute_clock_state(signals=[_sig(AxisId.LOGICAL_QUBITS, 1.0, signal_id="s_warm")])
     # Higher axis-1 reading => higher clock_score => earlier clock (lower hours).
     assert warm.clock_score >= cold.clock_score
     assert warm.clock_hours <= cold.clock_hours
 
 
 def test_pqc_migration_subtracts_from_clock_score() -> None:
-    base = compute_clock_state(
-        signals=[_sig(AxisId.LOGICAL_QUBITS, 1.0, signal_id="s_base")]
-    )
+    base = compute_clock_state(signals=[_sig(AxisId.LOGICAL_QUBITS, 1.0, signal_id="s_base")])
     with_pqc = compute_clock_state(
         signals=[
             _sig(AxisId.LOGICAL_QUBITS, 1.0, signal_id="s_base2"),

@@ -58,5 +58,5 @@ def test_canonical_hash_is_deterministic() -> None:
 
 
 def test_string_escapes_for_control_chars() -> None:
-    out = canonicalize("\t\n\"\\").decode("utf-8")
+    out = canonicalize('\t\n"\\').decode("utf-8")
     assert out == '"\\t\\n\\"\\\\"'

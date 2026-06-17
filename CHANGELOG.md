@@ -660,6 +660,64 @@ documenting the change (this entry).
   then `curl -s https://icqubit.com/data/clock_state.json | jq .methodology_url`
   must read `https://icqubit.com/methodology.html`).
 
+### Added — Path G: v0.2.5 — ruff lint cleanup
+The v0.2.4 deploy fixed the standalone-repo CI workflow (the
+`working-directory` mis-pointer left over from the SBVRS-source-tree
+layout). Once the CI step actually ran, it surfaced **119 pre-existing
+ruff lint errors** that had been invisible behind the broken bash step.
+v0.2.5 cleans them up to zero.
+
+Auto-fixed (142 in total across `--fix` cascade):
+- `UP017` × 33: `datetime.timezone.utc` → `datetime.UTC`
+- `UP045` × 33: `Optional[X]` → `X | None` (PEP 604)
+- `I001` × 17: import ordering
+- `UP037` × 7: quoted runtime annotations stripped
+- `F401` × 5: unused imports removed
+- `UP035` × 3: `typing` deprecated imports → `collections.abc`
+- `UP012` × 1: `"x".encode("utf-8")` → `"x".encode()`
+
+Manual fixes:
+- `B904`: `qday_clock/build.py:351` — added `from exc` on the SystemExit
+  re-raise so the original ValueError chain is preserved.
+- `UP042` × 2: `qday_clock/core/schemas.py` — `class EvidenceClass(str, Enum)`
+  and `class AxisId(str, Enum)` migrated to `StrEnum`. **Verified
+  canonical-safe**: both golden replay hashes
+  (`696887e1…` v0.1, `96eb797b…` v0.2) still match byte-for-byte after
+  the change, confirming Pydantic JSON-mode serialization uses `.value`
+  identically for both base patterns.
+- `B905` × 2: `axis_physical_scaling.py:142`, `axis_resource_estimate.py:251`
+  — added `strict=False` to `zip(anchors, anchors[1:])` (intentional
+  pair-wise sliding window, length difference is expected).
+- `B017` × 2: `tests/core/test_schemas.py:57, 80` — `pytest.raises(Exception)`
+  → `pytest.raises(ValidationError)` (the actual exception Pydantic
+  raises on the [0,1] clip and frozen-mutation paths).
+- `E501` × 8 manual: line wraps in `schemas.py`, `classifier.py`,
+  `score/clock.py` (intermediate-variable extraction in the
+  confidence-band calculation), `tests/test_smoke.py` (extracted
+  `lowered = html_method.lower()`).
+- `E501` × 5 via per-file ignore: `qday_clock/render/svg_clock.py` —
+  added `[tool.ruff.lint.per-file-ignores]` entry. The long lines are
+  literal SVG markup inside an f-string; splitting them would inject
+  whitespace into the rendered SVG output.
+
+Files changed:
+- `pyproject.toml`: per-file-ignores block added; version `0.2.4 → 0.2.5`.
+- `qday_clock/__init__.py`: `__version__ = "0.2.5"`.
+- 27 source/test files touched by `ruff --fix` and manual edits.
+
+### Verification — Path G
+- `python3 -m ruff check qday_clock tests` — `All checks passed!`
+- `python3 -m pytest tests/` — 230 passed (no test deletions or
+  threshold relaxations per CLAUDE.md §7).
+- `python3 -m pytest tests/golden/` — both canonical hashes still
+  byte-identical after the StrEnum migration (the canonical-safety
+  question I flagged in the §7 honest-flag).
+- `clock_state.json` artifact is byte-identical to v0.2.4 (no
+  re-lock needed).
+
+This is a pure CI/code-quality cleanup with no public-facing artifact
+change. Nothing in the signed `clock_state.json` moves.
+
 ## [0.1.0] — MVP scaffold
 
 ### Added

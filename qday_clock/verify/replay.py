@@ -120,9 +120,7 @@ def replay_golden(fixture_path: Path) -> int:
         )
         signals.append(
             Signal(
-                signal_id=_stable_signal_id(
-                    entry["source"], entry["title"], published_at
-                ),
+                signal_id=_stable_signal_id(entry["source"], entry["title"], published_at),
                 axis=AxisId(entry["axis"]),
                 title=entry["title"],
                 summary=entry["summary"],

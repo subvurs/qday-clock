@@ -7,19 +7,19 @@ freshness is computed in days (not weeks / months) so that the
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 def utcnow() -> datetime:
     """Return the current UTC time as a timezone-aware datetime."""
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 def to_utc(value: datetime) -> datetime:
     """Normalize a datetime to UTC. Naive datetimes are assumed to be UTC."""
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def iso(value: datetime) -> str:

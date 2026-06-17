@@ -14,13 +14,12 @@ arrives, when the step is small, or when independent sources confirm.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from qday_clock.core.schemas import AxisId, EvidenceClass, Signal
 from qday_clock.score.gates import MultiSourceConfirmationGate
 
-
-_NOW = datetime(2026, 6, 1, tzinfo=timezone.utc)
+_NOW = datetime(2026, 6, 1, tzinfo=UTC)
 
 
 def _signal(
@@ -53,9 +52,7 @@ def _signal(
 
 
 def test_unconfirmed_big_step_triggers_gate() -> None:
-    gate = MultiSourceConfirmationGate(
-        min_step=0.15, min_sources=2, window_days=30, multiplier=0.5
-    )
+    gate = MultiSourceConfirmationGate(min_step=0.15, min_sources=2, window_days=30, multiplier=0.5)
     # Only one source corroborating a +0.25 jump.
     verdict = gate.check(
         axis="logical_qubits",
@@ -75,9 +72,7 @@ def test_unconfirmed_big_step_triggers_gate() -> None:
 
 
 def test_two_sources_within_window_do_not_trigger_gate() -> None:
-    gate = MultiSourceConfirmationGate(
-        min_step=0.15, min_sources=2, window_days=30, multiplier=0.5
-    )
+    gate = MultiSourceConfirmationGate(min_step=0.15, min_sources=2, window_days=30, multiplier=0.5)
     verdict = gate.check(
         axis="logical_qubits",
         previous_reading=0.30,
@@ -101,9 +96,7 @@ def test_same_source_twice_still_triggers_gate() -> None:
     """An attacker republishing under the same source name does NOT
     count as independent corroboration — the gate compares distinct
     source strings."""
-    gate = MultiSourceConfirmationGate(
-        min_step=0.15, min_sources=2, window_days=30, multiplier=0.5
-    )
+    gate = MultiSourceConfirmationGate(min_step=0.15, min_sources=2, window_days=30, multiplier=0.5)
     verdict = gate.check(
         axis="logical_qubits",
         previous_reading=0.30,
@@ -124,9 +117,7 @@ def test_same_source_twice_still_triggers_gate() -> None:
 
 def test_stale_corroboration_outside_window_does_not_help() -> None:
     """A second source from 60 days ago doesn't rescue today's big jump."""
-    gate = MultiSourceConfirmationGate(
-        min_step=0.15, min_sources=2, window_days=30, multiplier=0.5
-    )
+    gate = MultiSourceConfirmationGate(min_step=0.15, min_sources=2, window_days=30, multiplier=0.5)
     verdict = gate.check(
         axis="logical_qubits",
         previous_reading=0.30,
@@ -147,9 +138,7 @@ def test_stale_corroboration_outside_window_does_not_help() -> None:
 
 
 def test_small_step_below_threshold_does_not_trigger() -> None:
-    gate = MultiSourceConfirmationGate(
-        min_step=0.15, min_sources=2, window_days=30, multiplier=0.5
-    )
+    gate = MultiSourceConfirmationGate(min_step=0.15, min_sources=2, window_days=30, multiplier=0.5)
     verdict = gate.check(
         axis="logical_qubits",
         previous_reading=0.30,
@@ -163,9 +152,7 @@ def test_small_step_below_threshold_does_not_trigger() -> None:
 
 def test_step_exactly_at_threshold_does_not_trigger() -> None:
     """Threshold is strictly greater-than, not greater-or-equal."""
-    gate = MultiSourceConfirmationGate(
-        min_step=0.15, min_sources=2, window_days=30, multiplier=0.5
-    )
+    gate = MultiSourceConfirmationGate(min_step=0.15, min_sources=2, window_days=30, multiplier=0.5)
     verdict = gate.check(
         axis="logical_qubits",
         previous_reading=0.30,
@@ -185,9 +172,7 @@ def test_negative_step_also_subject_to_confirmation() -> None:
     """A sudden DROP of >0.15 (clock walking back) also requires
     multi-source confirmation. Per CLAUDE.md §1, reversals get the
     same scrutiny as advances."""
-    gate = MultiSourceConfirmationGate(
-        min_step=0.15, min_sources=2, window_days=30, multiplier=0.5
-    )
+    gate = MultiSourceConfirmationGate(min_step=0.15, min_sources=2, window_days=30, multiplier=0.5)
     verdict = gate.check(
         axis="logical_qubits",
         previous_reading=0.60,

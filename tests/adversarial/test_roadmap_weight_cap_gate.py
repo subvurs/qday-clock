@@ -14,13 +14,12 @@ survey signals pass through unchanged.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from qday_clock.core.schemas import AxisId, EvidenceClass, Signal
 from qday_clock.score.gates import RoadmapWeightCapGate
 
-
-_NOW = datetime(2026, 6, 1, tzinfo=timezone.utc)
+_NOW = datetime(2026, 6, 1, tzinfo=UTC)
 
 
 def _signal(

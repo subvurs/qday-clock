@@ -33,11 +33,9 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 from qday_clock.core.errors import ThresholdDriftError
 from qday_clock.core.schemas import EvidenceClass, Signal
-
 
 # ---------------------------------------------------------------------------
 # Verdict
@@ -225,17 +223,12 @@ class MultiSourceConfirmationGate:
                 target=axis,
                 fired=False,
                 multiplier=1.0,
-                reason=(
-                    f"step {step:.3f} ≤ min_step {self.min_step} — "
-                    f"no confirmation required"
-                ),
+                reason=(f"step {step:.3f} ≤ min_step {self.min_step} — no confirmation required"),
             )
 
         window_start = now - timedelta(days=self.window_days)
         recent_sources: set[str] = {
-            sig.source
-            for sig in contributing_signals
-            if sig.observed_at >= window_start
+            sig.source for sig in contributing_signals if sig.observed_at >= window_start
         }
         if len(recent_sources) >= self.min_sources:
             return GateVerdict(
@@ -301,8 +294,7 @@ class RoadmapWeightCapGate:
                 fired=False,
                 multiplier=1.0,
                 reason=(
-                    f"evidence_class={signal.evidence_class.value} "
-                    f"(not roadmap) — no cap applied"
+                    f"evidence_class={signal.evidence_class.value} (not roadmap) — no cap applied"
                 ),
             )
         if signal.normalized_value <= self.cap:
@@ -312,8 +304,7 @@ class RoadmapWeightCapGate:
                 fired=False,
                 multiplier=1.0,
                 reason=(
-                    f"roadmap signal at {signal.normalized_value:.3f} "
-                    f"already ≤ cap {self.cap}"
+                    f"roadmap signal at {signal.normalized_value:.3f} already ≤ cap {self.cap}"
                 ),
             )
         # Apply cap: multiplier scales contribution to cap exactly.
@@ -373,8 +364,7 @@ class StaleSignalGate:
                 fired=False,
                 multiplier=1.0,
                 reason=(
-                    f"signal age {age_days:.0f}d ≤ fresh window "
-                    f"{self.fresh_days}d — full weight"
+                    f"signal age {age_days:.0f}d ≤ fresh window {self.fresh_days}d — full weight"
                 ),
             )
         if age_days >= self.stale_days:
@@ -463,10 +453,7 @@ class AntiStiffnessGate:
                 target=axis,
                 fired=False,
                 multiplier=1.0,
-                reason=(
-                    f"step {step:.3f} ≤ max_step {self.max_step} — "
-                    f"no stiffness penalty"
-                ),
+                reason=(f"step {step:.3f} ≤ max_step {self.max_step} — no stiffness penalty"),
             )
         return GateVerdict(
             name=self.name,
@@ -522,9 +509,7 @@ class ContrastSaturationGate:
                 target=signal_id,
                 fired=False,
                 multiplier=1.0,
-                reason=(
-                    f"signal share {signal_share:.3f} ≤ cap {self.cap}"
-                ),
+                reason=(f"signal share {signal_share:.3f} ≤ cap {self.cap}"),
             )
         multiplier = self.cap / signal_share
         return GateVerdict(
@@ -564,7 +549,7 @@ class ThresholdGuard:
 
     name: str = "ThresholdGuard"
     target: str = "display"
-    lock_path: Optional[Path] = None
+    lock_path: Path | None = None
 
     def check(self, current_thresholds: dict[str, float]) -> GateVerdict:
         if self.lock_path is None:
@@ -691,26 +676,22 @@ class GateBundle:
 
     static_point: StaticPointGate = field(default_factory=StaticPointGate)
     single_source: SingleSourceCapGate = field(default_factory=SingleSourceCapGate)
-    multi_source: MultiSourceConfirmationGate = field(
-        default_factory=MultiSourceConfirmationGate
-    )
+    multi_source: MultiSourceConfirmationGate = field(default_factory=MultiSourceConfirmationGate)
     roadmap_cap: RoadmapWeightCapGate = field(default_factory=RoadmapWeightCapGate)
     stale_signal: StaleSignalGate = field(default_factory=StaleSignalGate)
     anti_stiffness: AntiStiffnessGate = field(default_factory=AntiStiffnessGate)
-    contrast_saturation: ContrastSaturationGate = field(
-        default_factory=ContrastSaturationGate
-    )
-    threshold_guard: Optional[ThresholdGuard] = None
+    contrast_saturation: ContrastSaturationGate = field(default_factory=ContrastSaturationGate)
+    threshold_guard: ThresholdGuard | None = None
 
     def all_verdicts(
         self,
         signals: list[Signal],
         per_source_share: dict[str, float],
         signal_history: dict[str, list[float]],
-        current_thresholds: Optional[dict[str, float]] = None,
-        axis_step_proposals: Optional[list[AxisStepProposal]] = None,
-        per_signal_share: Optional[dict[str, float]] = None,
-        now: Optional[datetime] = None,
+        current_thresholds: dict[str, float] | None = None,
+        axis_step_proposals: list[AxisStepProposal] | None = None,
+        per_signal_share: dict[str, float] | None = None,
+        now: datetime | None = None,
     ) -> list[GateVerdict]:
         verdicts: list[GateVerdict] = []
         # Per-signal checks: static-point, roadmap-cap, contrast-saturation,

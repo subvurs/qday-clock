@@ -9,7 +9,7 @@ silently downgrade a raise into a warning.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -23,7 +23,7 @@ def _minimal_body() -> dict:
     """A schema-valid manifest body with one synthetic article."""
     return {
         "version": "1.0",
-        "generated_at": datetime(2026, 6, 1, tzinfo=timezone.utc).isoformat(),
+        "generated_at": datetime(2026, 6, 1, tzinfo=UTC).isoformat(),
         "curator_commit": "deadbeefcafe",
         "articles": [
             {
@@ -32,7 +32,7 @@ def _minimal_body() -> dict:
                 "url": "https://example.org/post-1",
                 "source": "Example Lab",
                 "topics": ["hardware", "error_correction"],
-                "published_at": datetime(2026, 5, 15, tzinfo=timezone.utc).isoformat(),
+                "published_at": datetime(2026, 5, 15, tzinfo=UTC).isoformat(),
                 "relevance_score": 0.9,
                 "summary": "Demonstration of a distance-11 surface code logical qubit.",
             },

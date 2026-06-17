@@ -41,7 +41,6 @@ from qday_clock.ingest.seed_signals import _stable_signal_id
 from qday_clock.score.clock import compute_clock_state
 from qday_clock.score.gri_baseline import GRIBaseline
 
-
 FIXTURE_PATH = Path(__file__).resolve().parent / "manifest_2026_v02.json"
 
 # Locked expected canonical-hash of the unsigned ClockState body produced
@@ -50,9 +49,9 @@ FIXTURE_PATH = Path(__file__).resolve().parent / "manifest_2026_v02.json"
 #
 # To re-lock (only when CHANGELOG documents the change), set this to
 # ``None`` and run pytest with -s; the test will print the actual hash.
-EXPECTED_CANONICAL_HASH = (
-    "96eb797b8a006bf93eae7026b4d49837867c329cd0d767f30e058f6a01ce14b1"
-)  # re-locked in v0.2.4 after methodology_url rename to https://icqubit.com/methodology.html
+# re-locked in v0.2.4 after methodology_url rename to
+# https://icqubit.com/methodology.html
+EXPECTED_CANONICAL_HASH = "96eb797b8a006bf93eae7026b4d49837867c329cd0d767f30e058f6a01ce14b1"
 
 # Locked set of gate names that MUST fire on this fixture. Per
 # CLAUDE.md §9 this is the Goodhart contract: a silent disconnection of
@@ -83,9 +82,7 @@ def _signals_from_fixture(fixture: dict, observed_at: datetime) -> list[Signal]:
         )
         out.append(
             Signal(
-                signal_id=_stable_signal_id(
-                    entry["source"], entry["title"], published_at
-                ),
+                signal_id=_stable_signal_id(entry["source"], entry["title"], published_at),
                 axis=AxisId(entry["axis"]),
                 title=entry["title"],
                 summary=entry["summary"],
@@ -113,9 +110,7 @@ def _gri_from_fixture(fixture: dict) -> GRIBaseline:
 
 
 def _canonical_unsigned_hash(state_dict: dict) -> str:
-    body = {
-        k: v for k, v in state_dict.items() if k not in ("signature", "signing_pubkey")
-    }
+    body = {k: v for k, v in state_dict.items() if k not in ("signature", "signing_pubkey")}
     return hashlib.sha256(canonicalize(body)).hexdigest()
 
 

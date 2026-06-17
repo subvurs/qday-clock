@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 from pydantic import ValidationError
 
@@ -39,7 +38,7 @@ from qday_clock.core.signing import verify_payload
 
 def fetch_manifest(
     path: Path | str,
-    expected_pubkey: Optional[str] = None,
+    expected_pubkey: str | None = None,
     *,
     require_signature: bool = True,
 ) -> CuratorManifest:

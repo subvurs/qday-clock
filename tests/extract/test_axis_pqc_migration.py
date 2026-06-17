@@ -6,7 +6,6 @@ import pytest
 
 from qday_clock.extract.axis_pqc_migration import extract, matches
 
-
 # ---------------------------------------------------------------------------
 # Keyword gate
 # ---------------------------------------------------------------------------
@@ -28,9 +27,7 @@ def test_no_keyword_returns_none() -> None:
 
 
 def test_mandate_anchors_at_one() -> None:
-    res = extract(
-        "Federal agencies report CNSA 2.0 mandatory deployment achieved", ""
-    )
+    res = extract("Federal agencies report CNSA 2.0 mandatory deployment achieved", "")
     assert res is not None
     assert res.severity == "mandate"
     assert res.normalized_value == pytest.approx(1.0)

@@ -31,7 +31,7 @@ uncertainty):
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from qday_clock.core.schemas import (
     AxisId,
@@ -74,7 +74,14 @@ def _classify_evidence(article: CuratorArticleRef) -> EvidenceClass:
     topics = {t.lower() for t in article.topics}
     if "hardware" in topics:
         return EvidenceClass.HARDWARE
-    for key in ("policy", "cryptography", "error_correction", "algorithms", "simulation", "research"):
+    for key in (
+        "policy",
+        "cryptography",
+        "error_correction",
+        "algorithms",
+        "simulation",
+        "research",
+    ):
         if key in topics:
             return _TOPIC_TO_EVIDENCE[key]
     # Default fail-conservative bucket — gate stack treats THEORY less
@@ -84,7 +91,7 @@ def _classify_evidence(article: CuratorArticleRef) -> EvidenceClass:
 
 def _signal_id(article: CuratorArticleRef, axis: AxisId) -> str:
     """Stable opaque id derived from post_id + axis."""
-    h = hashlib.sha256(f"{article.post_id}|{axis.value}".encode("utf-8")).hexdigest()
+    h = hashlib.sha256(f"{article.post_id}|{axis.value}".encode()).hexdigest()
     return f"sig_{h[:16]}"
 
 
@@ -281,7 +288,7 @@ def classify_manifest(
         value for golden-replay determinism.
     """
     if observed_at is None:
-        observed_at = datetime.now(tz=timezone.utc)
+        observed_at = datetime.now(tz=UTC)
 
     signals: list[Signal] = []
     for article in manifest.articles:

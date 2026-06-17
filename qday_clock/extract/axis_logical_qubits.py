@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Optional
 
 from qday_clock.extract.keywords import LOGICAL_QUBIT_KEYWORDS
 
@@ -31,17 +30,15 @@ _DISTANCE_PATTERNS: tuple[re.Pattern[str], ...] = (
 )
 
 #: Match e.g. "12 logical qubits", "multiple logical qubits"
-_LOGICAL_COUNT_PATTERN = re.compile(
-    r"(\d{1,3})\s+logical\s+qubits?", re.IGNORECASE
-)
+_LOGICAL_COUNT_PATTERN = re.compile(r"(\d{1,3})\s+logical\s+qubits?", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
 class LogicalQubitExtraction:
     """Result of running the logical-qubit extractor on an article."""
 
-    distance: Optional[int]
-    n_logical: Optional[int]
+    distance: int | None
+    n_logical: int | None
     normalized_value: float
     rationale: str
 
@@ -52,7 +49,7 @@ def matches(title: str, summary: str) -> bool:
     return any(kw in blob for kw in LOGICAL_QUBIT_KEYWORDS)
 
 
-def extract(title: str, summary: str) -> Optional[LogicalQubitExtraction]:
+def extract(title: str, summary: str) -> LogicalQubitExtraction | None:
     """Extract a logical-qubit signal from ``title + summary``.
 
     Returns ``None`` when the article matches a keyword but yields no
@@ -83,7 +80,7 @@ def extract(title: str, summary: str) -> Optional[LogicalQubitExtraction]:
 # ---------------------------------------------------------------------------
 
 
-def _first_distance(blob: str) -> Optional[int]:
+def _first_distance(blob: str) -> int | None:
     for pat in _DISTANCE_PATTERNS:
         m = pat.search(blob)
         if m:
@@ -98,7 +95,7 @@ def _first_distance(blob: str) -> Optional[int]:
     return None
 
 
-def _logical_count(blob: str) -> Optional[int]:
+def _logical_count(blob: str) -> int | None:
     m = _LOGICAL_COUNT_PATTERN.search(blob)
     if m:
         try:
@@ -111,8 +108,8 @@ def _logical_count(blob: str) -> Optional[int]:
 
 
 def _map_to_unit(
-    distance: Optional[int],
-    n_logical: Optional[int],
+    distance: int | None,
+    n_logical: int | None,
     blob: str,
 ) -> tuple[float, str]:
     """Map an extracted (distance, n_logical, text-hints) tuple to ``[0,1]``.

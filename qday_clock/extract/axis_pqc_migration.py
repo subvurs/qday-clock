@@ -31,7 +31,6 @@ mention is information; it is not deployment).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from qday_clock.extract.keywords import PQC_MIGRATION_KEYWORDS
 
@@ -110,7 +109,7 @@ def matches(title: str, summary: str) -> bool:
     return any(kw in blob for kw in PQC_MIGRATION_KEYWORDS)
 
 
-def extract(title: str, summary: str) -> Optional[PQCMigrationExtraction]:
+def extract(title: str, summary: str) -> PQCMigrationExtraction | None:
     """Extract a PQC-adoption signal from ``title + summary``.
 
     Strategy (highest-tier-wins):

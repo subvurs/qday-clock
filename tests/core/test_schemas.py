@@ -6,9 +6,10 @@ ordering, [0,1] reading clipping.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
+from pydantic import ValidationError
 
 from qday_clock.core.errors import SchemaError
 from qday_clock.core.schemas import (
@@ -54,7 +55,7 @@ def test_axis_reading_band_ordering() -> None:
 
 def test_axis_reading_clamps_to_unit() -> None:
     # Reading outside [0,1] should be rejected by pydantic.
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         AxisReading(
             axis=AxisId.LOGICAL_QUBITS,
             reading=1.5,
@@ -70,12 +71,12 @@ def test_signal_is_frozen() -> None:
         title="t",
         summary="s",
         source="src",
-        published_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
-        observed_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        published_at=datetime(2026, 1, 1, tzinfo=UTC),
+        observed_at=datetime(2026, 1, 2, tzinfo=UTC),
         evidence_class=EvidenceClass.HARDWARE,
         raw_value=7.0,
         normalized_value=0.5,
         confidence=1.0,
     )
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         s.normalized_value = 0.9  # type: ignore[misc]

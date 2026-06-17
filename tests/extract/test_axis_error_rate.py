@@ -6,7 +6,6 @@ import pytest
 
 from qday_clock.extract.axis_error_rate import extract, matches
 
-
 # ---------------------------------------------------------------------------
 # Keyword gate
 # ---------------------------------------------------------------------------

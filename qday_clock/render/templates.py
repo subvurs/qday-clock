@@ -15,7 +15,6 @@ import jinja2
 from qday_clock.core.schemas import AxisId, ClockState, Signal
 from qday_clock.render.svg_clock import render_svg
 
-
 # Human-readable labels for the 5 axes. Kept here (next to the renderer)
 # so the dashboard / sources templates stay declarative and the
 # templates themselves don't pin axis-naming policy.

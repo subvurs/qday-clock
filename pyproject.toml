@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qday-clock"
-version = "0.2.4"
+version = "0.2.5"
 description = "Evidence-driven Q-day reading: how close are cryptographically-relevant quantum computers (CRQCs)?"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -56,6 +56,11 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "N", "W"]
+
+[tool.ruff.lint.per-file-ignores]
+# SVG f-string contains literal markup lines that are inherently long;
+# splitting would inject text into the rendered SVG.
+"qday_clock/render/svg_clock.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

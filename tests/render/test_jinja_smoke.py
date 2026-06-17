@@ -13,7 +13,7 @@ we assert that:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import jinja2
 import pytest
@@ -48,7 +48,7 @@ def _stub_state() -> ClockState:
     axes = {a.value: axis.model_copy(update={"axis": a}) for a in AxisId}
     return ClockState(
         version="0.1.0",
-        generated_at=datetime(2026, 4, 1, 12, 0, tzinfo=timezone.utc),
+        generated_at=datetime(2026, 4, 1, 12, 0, tzinfo=UTC),
         clock_score=0.3,
         clock_hours=16.8,
         confidence_band_hours_low=15.0,
@@ -72,8 +72,8 @@ def _stub_signals() -> list[Signal]:
             summary="Surface-code distance-11 demo on Heron-class hardware.",
             source="vendor-A-paper",
             url="https://example.invalid/sigA",
-            published_at=datetime(2025, 12, 1, tzinfo=timezone.utc),
-            observed_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            published_at=datetime(2025, 12, 1, tzinfo=UTC),
+            observed_at=datetime(2026, 4, 1, tzinfo=UTC),
             evidence_class=EvidenceClass.HARDWARE,
             raw_value=11.0,
             normalized_value=0.55,
@@ -86,8 +86,8 @@ def _stub_signals() -> list[Signal]:
             summary="CNSA 2.0 software-supports requirement in force.",
             source="nsa-policy-statement",
             url=None,
-            published_at=datetime(2025, 9, 1, tzinfo=timezone.utc),
-            observed_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+            published_at=datetime(2025, 9, 1, tzinfo=UTC),
+            observed_at=datetime(2026, 4, 1, tzinfo=UTC),
             evidence_class=EvidenceClass.POLICY,
             raw_value=1.0,
             normalized_value=0.5,
@@ -137,7 +137,7 @@ def test_render_dashboard_smoke() -> None:
     # Mosca's inequality section must be present (informational, not a probability).
     assert "Mosca" in html
     # Drill-down anchors for sources should be present.
-    assert 'sources.html#' in html
+    assert "sources.html#" in html
 
 
 def test_render_sources_smoke() -> None:

@@ -44,10 +44,10 @@ import base64
 import json
 import os
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Sequence
 
 from qday_clock.core.errors import IngestError, QDayClockError, SignatureError
 from qday_clock.core.schemas import ClockState, Signal
@@ -63,7 +63,6 @@ from qday_clock.render.templates import (
     render_sources,
 )
 from qday_clock.score.clock import compute_clock_state
-
 
 #: Default repo-relative paths. The build entry point can be invoked
 #: from anywhere; these defaults assume the standard layout under
@@ -210,10 +209,7 @@ def _load_previous_axes_readings(manifest_path: Path) -> dict[str, float] | None
     axes = payload.get("axes")
     if not isinstance(axes, dict):
         raise IngestError(
-            (
-                f"existing clock_state.json missing or malformed 'axes' field: "
-                f"{manifest_path}"
-            ),
+            (f"existing clock_state.json missing or malformed 'axes' field: {manifest_path}"),
             error_code="build.previous_state_no_axes",
         )
 
@@ -285,18 +281,14 @@ def build_site(config: BuildConfig) -> BuildReport:
     methodology_text = _read_methodology(config.methodology_path)
 
     rendered: list[Path] = []
-    rendered.append(
-        _write(config.site_dir / "index.html", render_index(state_for_render))
-    )
+    rendered.append(_write(config.site_dir / "index.html", render_index(state_for_render)))
     rendered.append(
         _write(
             config.site_dir / "methodology.html",
             render_methodology(methodology_text),
         )
     )
-    rendered.append(
-        _write(config.site_dir / "about.html", render_about(pubkey_b64=pubkey_b64))
-    )
+    rendered.append(_write(config.site_dir / "about.html", render_about(pubkey_b64=pubkey_b64)))
     rendered.append(
         _write(
             config.site_dir / "dashboard.html",
@@ -349,7 +341,7 @@ def _parse_dt(raw: str) -> datetime:
     try:
         dt = datetime.fromisoformat(raw)
     except ValueError as exc:
-        raise SystemExit(f"--now is not a valid ISO-8601 datetime: {raw!r}: {exc}")
+        raise SystemExit(f"--now is not a valid ISO-8601 datetime: {raw!r}: {exc}") from exc
     return to_utc(dt)
 
 

@@ -20,10 +20,8 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-
-import pytest
 
 from qday_clock.core.canonical import canonicalize
 from qday_clock.core.schemas import (
@@ -37,12 +35,11 @@ from qday_clock.render.manifest import write_signed_manifest
 from qday_clock.render.templates import render_about, render_index, render_methodology
 from qday_clock.score.clock import compute_clock_state
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _fallback_signal() -> Signal:
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     return Signal(
         signal_id="smoke-fallback-d7-fixture",
         axis=AxisId.LOGICAL_QUBITS,
@@ -108,7 +105,8 @@ def test_pipeline_smoke(tmp_path: Path) -> None:
         else "# Methodology\n\nPlaceholder text for smoke test."
     )
     html_method = render_methodology(methodology_text)
-    assert "<html" in html_method.lower() or "<!doctype" in html_method.lower() or "<section" in html_method.lower()
+    lowered = html_method.lower()
+    assert "<html" in lowered or "<!doctype" in lowered or "<section" in lowered
 
     html_about = render_about(pubkey_b64=pubkey_b64)
     assert pubkey_b64 in html_about
@@ -126,9 +124,7 @@ def test_canonical_signed_payload_is_stable() -> None:
     sig = _fallback_signal()
     state = compute_clock_state([sig])
     # Pin generated_at so the two signings see the same body.
-    pinned = state.model_copy(
-        update={"generated_at": datetime(2026, 1, 1, tzinfo=timezone.utc)}
-    )
+    pinned = state.model_copy(update={"generated_at": datetime(2026, 1, 1, tzinfo=UTC)})
 
     def _unsigned_canonical_bytes(s: ClockState) -> bytes:
         body = s.model_dump(mode="json")

@@ -22,16 +22,13 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
-from typing import Optional
 
 from qday_clock.extract.keywords import ERROR_RATE_KEYWORDS
 
 # Error-rate keyword fragment. The numeric can appear EITHER side of the
 # keyword in real article text, so each pattern is checked in both
 # orientations.
-_ERR_KW = (
-    r"(?:gate\s+error|two[-\s]?qubit\s+(?:gate\s+)?error|2q\s+error|error\s+rate)"
-)
+_ERR_KW = r"(?:gate\s+error|two[-\s]?qubit\s+(?:gate\s+)?error|2q\s+error|error\s+rate)"
 _FID_KW = r"(?:gate\s+)?fidelity"
 
 # Explicit error rate as a percent. Examples:
@@ -50,8 +47,7 @@ _ERROR_SCIENTIFIC_PATTERNS: tuple[re.Pattern[str], ...] = (
         re.IGNORECASE,
     ),
     re.compile(
-        r"(\d+(?:\.\d+)?)\s*(?:e|[eE]|×\s*10\^?|x\s*10\^?)\s*[-−]\s*(\d+)[^0-9]{0,40}?"
-        + _ERR_KW,
+        r"(\d+(?:\.\d+)?)\s*(?:e|[eE]|×\s*10\^?|x\s*10\^?)\s*[-−]\s*(\d+)[^0-9]{0,40}?" + _ERR_KW,
         re.IGNORECASE,
     ),
 )
@@ -91,7 +87,7 @@ def matches(title: str, summary: str) -> bool:
     return any(kw in blob for kw in ERROR_RATE_KEYWORDS)
 
 
-def extract(title: str, summary: str) -> Optional[ErrorRateExtraction]:
+def extract(title: str, summary: str) -> ErrorRateExtraction | None:
     """Extract an error-rate signal from ``title + summary``.
 
     Strategy:
@@ -175,7 +171,7 @@ def _extract_explicit_errors(blob: str) -> list[float]:
                 exponent = int(m.group(2))
             except ValueError:
                 continue
-            _record_if_plausible(mantissa * (10 ** -exponent), out)
+            _record_if_plausible(mantissa * (10**-exponent), out)
 
     for pat in _ERROR_DECIMAL_PATTERNS:
         for m in pat.finditer(blob):

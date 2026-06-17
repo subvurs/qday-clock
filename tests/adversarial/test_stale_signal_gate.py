@@ -16,13 +16,12 @@ equally.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from qday_clock.core.schemas import AxisId, EvidenceClass, Signal
 from qday_clock.score.gates import StaleSignalGate
 
-
-_NOW = datetime(2026, 6, 1, tzinfo=timezone.utc)
+_NOW = datetime(2026, 6, 1, tzinfo=UTC)
 
 
 def _signal(

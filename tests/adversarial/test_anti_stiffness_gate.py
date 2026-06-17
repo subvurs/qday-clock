@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from qday_clock.score.gates import AntiStiffnessGate
 
-
 # ---------------------------------------------------------------------------
 # Big step fires (positive direction)
 # ---------------------------------------------------------------------------

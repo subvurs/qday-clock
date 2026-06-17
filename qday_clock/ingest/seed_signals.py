@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from qday_clock.core.errors import IngestError
@@ -91,7 +91,7 @@ def load_seed_signals(path: Path | str) -> list[Signal]:
         )
 
     out: list[Signal] = []
-    observed_at = datetime.now(tz=timezone.utc)
+    observed_at = datetime.now(tz=UTC)
 
     for idx, entry in enumerate(data["signals"]):
         try:
@@ -99,9 +99,7 @@ def load_seed_signals(path: Path | str) -> list[Signal]:
             evidence_class = EvidenceClass(entry["evidence_class"])
             published_at = _parse_dt(entry["published_at"])
             signal = Signal(
-                signal_id=_stable_signal_id(
-                    entry["source"], entry["title"], published_at
-                ),
+                signal_id=_stable_signal_id(entry["source"], entry["title"], published_at),
                 axis=axis,
                 title=entry["title"],
                 summary=entry["summary"],

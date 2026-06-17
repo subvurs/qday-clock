@@ -10,7 +10,6 @@ from qday_clock.extract.axis_resource_estimate import (
     matches,
 )
 
-
 # ---------------------------------------------------------------------------
 # Keyword gate
 # ---------------------------------------------------------------------------
@@ -34,9 +33,7 @@ def test_no_keyword_returns_none() -> None:
 
 
 def test_shor_baseline_20m_qubits_maps_to_zero() -> None:
-    res = extract(
-        "Gidney-Ekera RSA-2048 estimate: 20 million qubits", ""
-    )
+    res = extract("Gidney-Ekera RSA-2048 estimate: 20 million qubits", "")
     assert res is not None
     assert res.channel == "shor"
     assert res.qubits_to_factor == 20_000_000
@@ -126,9 +123,7 @@ def test_aes_grover_baseline_mention_capped_by_sub_weight() -> None:
 
 def test_aes_grover_constant_factor_improvement() -> None:
     """An improved Grover-on-AES-128 estimate → severity 0.5, folded to 0.15."""
-    res = extract(
-        "Improved Grover circuit for AES-128 with reduced T-count", ""
-    )
+    res = extract("Improved Grover circuit for AES-128 with reduced T-count", "")
     assert res is not None
     assert res.channel == "aes_grover"
     assert res.normalized_value == pytest.approx(0.5 * AES_SUB_WEIGHT)

@@ -34,7 +34,6 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
-from typing import Optional
 
 from qday_clock.extract.keywords import RESOURCE_ESTIMATE_KEYWORDS
 
@@ -91,9 +90,7 @@ _AES_128_MENTIONS: tuple[str, ...] = (
     "aes128",
 )
 
-_GROVER_MENTIONS: tuple[str, ...] = (
-    "grover",
-)
+_GROVER_MENTIONS: tuple[str, ...] = ("grover",)
 
 
 @dataclass(frozen=True)
@@ -101,8 +98,8 @@ class ResourceEstimateExtraction:
     """Result of running the axis-3 extractor on an article."""
 
     channel: str  # "shor" or "aes_grover"
-    qubits_to_factor: Optional[int]
-    time_to_factor_minutes: Optional[float]
+    qubits_to_factor: int | None
+    time_to_factor_minutes: float | None
     normalized_value: float
     rationale: str
 
@@ -113,7 +110,7 @@ def matches(title: str, summary: str) -> bool:
     return any(kw in blob for kw in RESOURCE_ESTIMATE_KEYWORDS)
 
 
-def extract(title: str, summary: str) -> Optional[ResourceEstimateExtraction]:
+def extract(title: str, summary: str) -> ResourceEstimateExtraction | None:
     """Extract a resource-estimate signal from ``title + summary``.
 
     Returns ``None`` when the keyword gate matches but no resource
@@ -163,7 +160,7 @@ def extract(title: str, summary: str) -> Optional[ResourceEstimateExtraction]:
 # ---------------------------------------------------------------------------
 
 
-def _extract_qubits(blob: str) -> Optional[int]:
+def _extract_qubits(blob: str) -> int | None:
     """Return the largest plausible qubit count appearing alongside
     a factoring/breaking/attacking verb or "qubits to factor"-style phrase.
 
@@ -189,7 +186,7 @@ def _extract_qubits(blob: str) -> Optional[int]:
     return max(candidates)
 
 
-def _extract_minutes(blob: str) -> Optional[float]:
+def _extract_minutes(blob: str) -> float | None:
     """Return the smallest plausible factoring time, in minutes.
 
     Smallest because faster = worse (closer to Q-day). Accepts minutes,
@@ -249,7 +246,7 @@ def _interp_descending(x: float, anchors: tuple[tuple[float, float], ...]) -> fl
         return anchors[0][1]
     if x >= anchors[-1][0]:
         return anchors[-1][1]
-    for (x0, y0), (x1, y1) in zip(anchors, anchors[1:]):
+    for (x0, y0), (x1, y1) in zip(anchors, anchors[1:], strict=False):
         if x0 <= x <= x1:
             frac = (x - x0) / (x1 - x0)
             y = y0 + frac * (y1 - y0)
@@ -257,15 +254,13 @@ def _interp_descending(x: float, anchors: tuple[tuple[float, float], ...]) -> fl
     return 0.0  # unreachable given the clamps above
 
 
-def _map_shor(
-    qubits: Optional[int], minutes: Optional[float]
-) -> tuple[float, str]:
+def _map_shor(qubits: int | None, minutes: float | None) -> tuple[float, str]:
     """Combine the qubits and/or time channels into one ``[0, 1]`` reading.
 
     When both are present, take the MAX (whichever is closer to Q-day).
     """
-    qubit_value: Optional[float] = None
-    time_value: Optional[float] = None
+    qubit_value: float | None = None
+    time_value: float | None = None
     rationales: list[str] = []
 
     if qubits is not None:

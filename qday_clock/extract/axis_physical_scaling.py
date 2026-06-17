@@ -31,7 +31,6 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass
-from typing import Optional
 
 from qday_clock.extract.keywords import PHYSICAL_SCALING_KEYWORDS
 
@@ -73,7 +72,7 @@ def matches(title: str, summary: str) -> bool:
     return any(kw in blob for kw in PHYSICAL_SCALING_KEYWORDS)
 
 
-def extract(title: str, summary: str) -> Optional[PhysicalScalingExtraction]:
+def extract(title: str, summary: str) -> PhysicalScalingExtraction | None:
     """Extract a physical-qubit-count signal from ``title + summary``.
 
     Returns ``None`` when the article matches a keyword but yields no
@@ -100,7 +99,7 @@ def extract(title: str, summary: str) -> Optional[PhysicalScalingExtraction]:
 # ---------------------------------------------------------------------------
 
 
-def _largest_qubit_count(blob: str) -> Optional[int]:
+def _largest_qubit_count(blob: str) -> int | None:
     """Return the largest plausible qubit count found in ``blob``.
 
     Plausibility floor: 10. Anything smaller (e.g. "5 qubits demo") is a
@@ -140,7 +139,7 @@ def _map_to_unit(n_qubits: int) -> tuple[float, str]:
         return 1.0, f"{n_qubits} qubits (≥ Gidney-Ekera RSA-2048 estimate)"
 
     x = math.log10(float(n_qubits))
-    for (x0, y0), (x1, y1) in zip(_ANCHORS, _ANCHORS[1:]):
+    for (x0, y0), (x1, y1) in zip(_ANCHORS, _ANCHORS[1:], strict=False):
         if x0 <= x <= x1:
             frac = (x - x0) / (x1 - x0)
             y = y0 + frac * (y1 - y0)

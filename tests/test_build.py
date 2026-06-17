@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import base64
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -29,6 +29,8 @@ from qday_clock.build import (
     SIGNING_KEY_B64_ENV,
     BuildConfig,
     build_site,
+)
+from qday_clock.build import (
     main as build_main,
 )
 from qday_clock.core.errors import IngestError, SignatureError
@@ -57,7 +59,7 @@ def _config(tmp_path: Path, **overrides) -> BuildConfig:
         seed_signals_path=REPO_ROOT / "data" / "seed_signals.json",
         methodology_path=REPO_ROOT / "METHODOLOGY.md",
         allow_ephemeral_key=True,
-        now=datetime(2026, 6, 1, tzinfo=timezone.utc),
+        now=datetime(2026, 6, 1, tzinfo=UTC),
     )
     defaults.update(overrides)
     return BuildConfig(**defaults)
@@ -123,7 +125,7 @@ def test_dashboard_and_sources_reference_each_other(tmp_path: Path) -> None:
     # resolves to an id="..." in sources.html.
     import re
 
-    anchors = re.findall(r'sources\.html#([A-Za-z0-9_-]+)', dashboard)
+    anchors = re.findall(r"sources\.html#([A-Za-z0-9_-]+)", dashboard)
     assert anchors, "dashboard.html has no sources.html# drill-down links"
     for anchor in anchors:
         assert f'id="{anchor}"' in sources, (
@@ -138,10 +140,10 @@ def test_second_build_appends_history_and_reads_previous_state(
 ) -> None:
     """Second build should append (not overwrite) history and parse the
     first build's clock_state.json without error."""
-    config_a = _config(tmp_path, now=datetime(2026, 6, 1, tzinfo=timezone.utc))
+    config_a = _config(tmp_path, now=datetime(2026, 6, 1, tzinfo=UTC))
     build_site(config_a)
 
-    config_b = _config(tmp_path, now=datetime(2026, 6, 2, tzinfo=timezone.utc))
+    config_b = _config(tmp_path, now=datetime(2026, 6, 2, tzinfo=UTC))
     build_site(config_b)
 
     history = (config_b.site_dir / "data" / "history.jsonl").read_text("utf-8")
@@ -155,9 +157,7 @@ def test_corrupt_previous_state_raises(tmp_path: Path) -> None:
     artifact and silently disable step-change gates. CLAUDE.md §8."""
     config = _config(tmp_path)
     (config.site_dir / "data").mkdir(parents=True)
-    (config.site_dir / "data" / "clock_state.json").write_text(
-        "not json", encoding="utf-8"
-    )
+    (config.site_dir / "data" / "clock_state.json").write_text("not json", encoding="utf-8")
     with pytest.raises(IngestError) as excinfo:
         build_site(config)
     assert excinfo.value.error_code == "build.previous_state_bad_json"
@@ -174,13 +174,9 @@ def test_signing_key_missing_is_fail_closed(
     assert excinfo.value.error_code == "build.no_signing_key"
 
 
-def test_signing_key_from_env_b64(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_signing_key_from_env_b64(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     key = SigningKey.generate()
-    monkeypatch.setenv(
-        SIGNING_KEY_B64_ENV, base64.b64encode(key.to_bytes()).decode("ascii")
-    )
+    monkeypatch.setenv(SIGNING_KEY_B64_ENV, base64.b64encode(key.to_bytes()).decode("ascii"))
     config = _config(tmp_path, allow_ephemeral_key=False)
     report = build_site(config)
     assert report.used_ephemeral_key is False
@@ -192,9 +188,7 @@ def test_signing_key_from_file_raw_bytes(tmp_path: Path) -> None:
     key = SigningKey.generate()
     key_path = tmp_path / "ed25519.raw"
     key_path.write_bytes(key.to_bytes())
-    config = _config(
-        tmp_path, signing_key_file=key_path, allow_ephemeral_key=False
-    )
+    config = _config(tmp_path, signing_key_file=key_path, allow_ephemeral_key=False)
     report = build_site(config)
     payload = json.loads(report.manifest_path.read_text(encoding="utf-8"))
     assert payload["signing_pubkey"] == key.verify_key.to_b64()
@@ -203,9 +197,7 @@ def test_signing_key_from_file_raw_bytes(tmp_path: Path) -> None:
 def test_signing_key_file_bad_format_raises(tmp_path: Path) -> None:
     bad = tmp_path / "bad.key"
     bad.write_bytes(b"this is neither 32 raw bytes nor base64\x00\x01\x02")
-    config = _config(
-        tmp_path, signing_key_file=bad, allow_ephemeral_key=False
-    )
+    config = _config(tmp_path, signing_key_file=bad, allow_ephemeral_key=False)
     with pytest.raises(SignatureError) as excinfo:
         build_site(config)
     assert excinfo.value.error_code == "build.signing_key_file_bad_format"

@@ -44,7 +44,7 @@ class VerifyKey:
         self._pk = pk
 
     @classmethod
-    def from_bytes(cls, raw: bytes) -> "VerifyKey":
+    def from_bytes(cls, raw: bytes) -> VerifyKey:
         if len(raw) != ED25519_PUBKEY_LEN:
             raise SignatureError(
                 f"Ed25519 public key must be {ED25519_PUBKEY_LEN} bytes, got {len(raw)}",
@@ -60,7 +60,7 @@ class VerifyKey:
         return cls(pk)
 
     @classmethod
-    def from_b64(cls, encoded: str) -> "VerifyKey":
+    def from_b64(cls, encoded: str) -> VerifyKey:
         try:
             raw = base64.b64decode(encoded, validate=True)
         except Exception as exc:
@@ -111,11 +111,11 @@ class SigningKey:
         self.verify_key = VerifyKey(sk.public_key())
 
     @classmethod
-    def generate(cls) -> "SigningKey":
+    def generate(cls) -> SigningKey:
         return cls(Ed25519PrivateKey.generate())
 
     @classmethod
-    def from_bytes(cls, raw: bytes) -> "SigningKey":
+    def from_bytes(cls, raw: bytes) -> SigningKey:
         if len(raw) != 32:
             raise SignatureError(
                 f"Ed25519 private key must be 32 bytes, got {len(raw)}",

@@ -8,10 +8,6 @@ on:
 permissions:
   contents: read
 
-defaults:
-  run:
-    working-directory: public_interest/qday_clock
-
 jobs:
   tests:
     runs-on: ubuntu-latest

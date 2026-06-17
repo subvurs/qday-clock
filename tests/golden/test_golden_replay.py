@@ -51,7 +51,9 @@ FIXTURE_PATH = Path(__file__).resolve().parent / "manifest_2026_q1.json"
 #
 # To re-lock (only when CHANGELOG documents the change), set this to
 # ``None`` and run pytest with -s; the test will print the actual hash.
-EXPECTED_CANONICAL_HASH = "aa5a8c11dd0981ce19a191aa74eadeb7ec51211f7efe7793aff0b5bbee242fe9"
+EXPECTED_CANONICAL_HASH = (
+    "696887e1a72fbaada43940c0968a7b6a041f99b35b84d4b452bed7eb955a9caa"
+)  # re-locked in v0.2.4 after methodology_url rename to https://icqubit.com/methodology.html
 
 
 def _parse_dt(raw: str) -> datetime:

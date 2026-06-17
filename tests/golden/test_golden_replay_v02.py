@@ -50,7 +50,9 @@ FIXTURE_PATH = Path(__file__).resolve().parent / "manifest_2026_v02.json"
 #
 # To re-lock (only when CHANGELOG documents the change), set this to
 # ``None`` and run pytest with -s; the test will print the actual hash.
-EXPECTED_CANONICAL_HASH = "9d20017e0e938d4b4a98e6d47ba545f2c73ea5c074d9973288408c2c602d0d7d"
+EXPECTED_CANONICAL_HASH = (
+    "96eb797b8a006bf93eae7026b4d49837867c329cd0d767f30e058f6a01ce14b1"
+)  # re-locked in v0.2.4 after methodology_url rename to https://icqubit.com/methodology.html
 
 # Locked set of gate names that MUST fire on this fixture. Per
 # CLAUDE.md §9 this is the Goodhart contract: a silent disconnection of

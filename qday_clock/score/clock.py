@@ -43,10 +43,7 @@ from qday_clock.score.gri_baseline import (
 )
 
 
-METHODOLOGY_URL = (
-    "https://github.com/MarkEatherly/subvurs/"
-    "blob/main/public_interest/qday_clock/METHODOLOGY.md"
-)
+METHODOLOGY_URL = "https://icqubit.com/methodology.html"
 
 
 def compute_clock_state(

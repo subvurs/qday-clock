@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "qday-clock"
-version = "0.1.0"
+version = "0.2.4"
 description = "Evidence-driven Q-day reading: how close are cryptographically-relevant quantum computers (CRQCs)?"
 readme = "README.md"
 license = { file = "LICENSE" }
-authors = [{ name = "Mark Eatherly" }]
+authors = [{ name = "Subvurs" }]
 requires-python = ">=3.11"
 classifiers = [
     "License :: OSI Approved :: MIT License",

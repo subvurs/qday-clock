@@ -604,6 +604,62 @@ Rewrite scope:
   release artifact (Path B section above).
 - Daily cron in `refresh.yml` (currently `workflow_dispatch`-only).
 
+### Added — Path F: v0.2.4 — methodology URL rename + authorship cleanup
+Caught during the first live deploy of `https://icqubit.com/`: the
+signed `clock_state.json` `methodology_url` field pointed at
+`https://github.com/MarkEatherly/subvurs/blob/main/public_interest/qday_clock/METHODOLOGY.md`,
+a repo path that does not exist (the SBVRS repo is under MarsVMondo,
+the standalone repo is `subvurs/qday-clock`). The link rendered into
+the dashboard footer was therefore dead. v0.2.4 swaps the URL to the
+live `https://icqubit.com/methodology.html` (which the v0.2.2 build
+step already renders) and removes the `Mark Eatherly` authorship
+string from `pyproject.toml` and `LICENSE` in favor of `Subvurs`
+project-level authorship — per Mark's request to keep the public-facing
+artifacts cleanly under the Subvurs identity.
+
+Files changed:
+- `qday_clock/score/clock.py`: `METHODOLOGY_URL` set to
+  `https://icqubit.com/methodology.html`.
+- `pyproject.toml`: `authors = [{ name = "Subvurs" }]` (was
+  `Mark Eatherly`). Version bumped `0.1.0` → `0.2.4` to match git
+  tag cadence (the v0.2.0/.1/.2/.3 tags were git-only; v0.2.4 is the
+  first release where the pyproject string is brought in line).
+- `qday_clock/__init__.py`: `__version__ = "0.2.4"` (was `0.1.0`).
+- `LICENSE`: `Copyright (c) 2026 Subvurs` (was `Mark Eatherly`).
+
+### Tests — Path F (golden replay re-lock)
+The `methodology_url` rename changes the byte image of every signed
+`clock_state.json`, so both golden replay hashes had to be re-locked.
+Per CLAUDE.md §7 this is the documented re-lock path — the test files
+explicitly support `EXPECTED_CANONICAL_HASH = None` bootstrap mode for
+exactly this case, and re-locking is conditional on a CHANGELOG entry
+documenting the change (this entry).
+
+- `tests/golden/test_golden_replay.py::EXPECTED_CANONICAL_HASH`
+  re-locked: `aa5a8c11…` → `696887e1a72fbaada43940c0968a7b6a041f99b35b84d4b452bed7eb955a9caa`.
+- `tests/golden/test_golden_replay_v02.py::EXPECTED_CANONICAL_HASH`
+  re-locked: `9d20017e…` → `96eb797b8a006bf93eae7026b4d49837867c329cd0d767f30e058f6a01ce14b1`.
+- `tests/golden/expected_state.json` regenerated as a deterministic
+  byte-identical canonical (RFC-8785) replay snapshot of
+  `manifest_2026_q1.json`. This file isn't read by any test (a
+  stale snapshot artifact); regenerated only so a future reader
+  doesn't mistake it for current data.
+- v0.2 gate-fire contract unchanged: both `RoadmapWeightCapGate`
+  and `StaleSignalGate` still fire on `manifest_2026_v02.json` per
+  the Goodhart-contract assertion in
+  `test_golden_replay_v02_required_gates_fire`.
+
+### Verification — Path F
+- `python3 -m pytest tests/ -q` — 230 passed (unchanged from Path E).
+- `methodology_url` in the regenerated `expected_state.json` reads
+  `https://icqubit.com/methodology.html` (verified via
+  `python3 -c "import json; print(json.load(open('tests/golden/expected_state.json'))['methodology_url'])"`).
+- Forbidden-language lint untouched.
+- Live verification deferred to the post-deploy step (re-deploy
+  must regenerate the live `clock_state.json` with the new URL,
+  then `curl -s https://icqubit.com/data/clock_state.json | jq .methodology_url`
+  must read `https://icqubit.com/methodology.html`).
+
 ## [0.1.0] — MVP scaffold
 
 ### Added

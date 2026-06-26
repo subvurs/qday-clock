@@ -4,13 +4,23 @@ name: refresh
 # current signals and open a PR for human review. Per plan §F we never
 # auto-publish; the PR is the human-in-the-loop gate.
 #
-# v0.1.0 status (workflow_dispatch only):
-#   * Curator manifest publishing is not yet wired on the Curator side.
-#     Until the Curator repo publishes a signed manifest artifact, this
-#     workflow runs on seeds + GRI baseline only.
-#   * The daily cron entry below is commented-out intentionally. v0.2
-#     uncomments it once an upstream artifact is reliable.
-#   * Manual `workflow_dispatch` lets a human trigger a refresh + PR.
+# Status:
+#   * v0.1.0: workflow_dispatch only — no upstream Curator artifact.
+#   * v0.2 (this PR, 2026-06-26): daily cron ENABLED. The Curator side
+#     (subvurs/quantum-curator, commits 7847250 + 55efcfa) now produces
+#     a signed CuratorManifest each day and force-pushes it to the
+#     `manifest` branch of the curator repo. The signing pubkey is in
+#     the QDAY_CURATOR_PUBKEY_B64 repo secret.
+#   * NOT YET in this PR (deliberate scope cut): the cron path still
+#     runs SEEDS-ONLY because the `Fetch Curator manifest` step is
+#     gated on the workflow_dispatch `curator_manifest_url` input,
+#     which is empty under cron. A follow-up PR will default that URL
+#     to raw.githubusercontent.com/subvurs/quantum-curator/manifest/
+#     curator_manifest.json so the cron path actually consumes the
+#     manifest. Doing it in two PRs so each behavior change is
+#     reviewable on its own.
+#   * Manual `workflow_dispatch` with an explicit URL keeps working
+#     and IS the verified consumption path right now.
 
 on:
   workflow_dispatch:
@@ -22,8 +32,8 @@ on:
           seeds-only refresh.
         required: false
         type: string
-  # schedule:
-  #   - cron: "0 8 * * *"   # v0.2: enable when Curator artifact lands
+  schedule:
+    - cron: "0 8 * * *"   # daily 08:00 UTC — Curator finishes ~07:30 UTC
 
 permissions:
   contents: write

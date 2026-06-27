@@ -9,6 +9,85 @@ with project-specific sections for `Gate fires` and `Reversals`.
 
 ## [Unreleased]
 
+### Added — Path H: daily cron enabled + first end-to-end smoke (2026-06-27)
+Two workflow-only PRs (no package version bump — no Python code shipped):
+
+- **PR #1** ([qday-clock#1](https://github.com/subvurs/qday-clock/pull/1),
+  branch `qday-clock/enable-daily-cron-v02`, squash-merged
+  2026-06-27T00:05:12Z as commit `d1bd6b6a`): uncommented the
+  `schedule: cron: "0 8 * * *"` line in `refresh.yml`. First scheduled
+  fire 2026-06-27 08:00 UTC.
+
+  Scope cut, recorded per rigor §1: the cron path still runs SEEDS-ONLY
+  because the `Fetch Curator manifest` step is gated on
+  `inputs.curator_manifest_url != ''`, which is empty under cron. A
+  follow-on PR will default that input to
+  `https://raw.githubusercontent.com/subvurs/quantum-curator/manifest/curator_manifest.json`
+  so the cron path actually consumes the upstream manifest. Two-PR
+  split is intentional — each behavior change reviewable on its own,
+  and the URL default waited until after the smoke proved the URL
+  serves content.
+
+- **PR #2** ([qday-clock#2](https://github.com/subvurs/qday-clock/pull/2),
+  branch `qday-clock/fix-workflow-cwd`, squash-merged
+  2026-06-27T00:20:22Z as commit `cc320f8`): removed the stale
+  `defaults: run: working-directory: public_interest/qday_clock` block
+  from `refresh.yml`. It was a leftover from when `qday_clock` lived
+  as a subdirectory of the Subvurs monorepo; the standalone repo has
+  `qday_clock/` at the root. Discovered by the K11 smoke (run
+  `28272363714` failed at `Install Q-day Clock` with "No such file or
+  directory" for that path). PR CI had never caught this because PR
+  CI only runs the tests job, not the refresh job.
+
+### End-to-end smoke (run 2026-06-27 — Curator → manifest branch → refresh.yml)
+This is the first time the full **K11 → `subvurs/quantum-curator`
+manifest branch → `raw.githubusercontent.com` → `refresh.yml`
+workflow_dispatch → signature verify → `compute_clock_state`** path
+has run live.
+
+| Stage | Evidence |
+|---|---|
+| K11 `quantum-curator qday-export` | 167 articles, 240801 bytes, local `verify_payload=True`; curator commit `55efcfa5c591` |
+| Force-push → manifest branch | commit `33152bb` on `subvurs/quantum-curator` (first push, branch created at that moment) |
+| `raw.githubusercontent.com` GET | HTTP 200, byte-identical 240801 bytes |
+| `refresh.yml` workflow_dispatch | run [28272654436](https://github.com/subvurs/qday-clock/actions/runs/28272654436) — Install + Fetch + Recompute + Diff all green in 23 s |
+| Signature verified vs `QDAY_CURATOR_PUBKEY_B64` | log line: `refresh: ingested manifest with 167 articles, commit=55efcfa5c591` (no `VerificationError`) |
+| Clock state | `clock_score = 0.4153`, `clock_hours = 14.03` |
+| Refresh PR opened? | No — recomputed `site/data/clock_state.json` is byte-identical to current `main` (deterministic; expected outcome, not a fault) |
+
+Curator-side pubkey: `w2jrKwsAQoSBOq8wgqEVIQd0gzs56/KmMBLFuXUy+d0=`
+(distinct from the Q-day Clock state-signing key
+`gpg724ZUbG1PHzEI9L/dhcJGkbz5S/251STdeN3P0YU=` documented above — two
+separate concerns, two separate secrets).
+
+### What this leg confirms
+
+1. The `qday-export` → `fetch_manifest` → `classify_manifest` pydantic
+   contract holds on the wire: 167 articles round-tripped through
+   canonical-JSON, Ed25519 signature, force-push, raw fetch,
+   `verify_payload`, classification, scoring.
+2. The pinned-pubkey defense works end-to-end: the workflow secret
+   matches the K11 signing key, so an attacker swapping the manifest
+   branch content (or compromising a different curator instance) would
+   trip `VerificationError` at `fetch_manifest` line 1 — before any
+   axis reading is touched.
+3. The orphan-branch + force-push pattern (one-commit, single-file
+   `curator_manifest.json` on a dedicated branch) is the right
+   distribution shape: `gh-pages` deploy of the Crier remains
+   unaffected, history stays at exactly one commit, and
+   `raw.githubusercontent.com` serves the JSON immediately on push.
+
+### Open follow-ups (next session)
+
+- Default `curator_manifest_url` so the cron path consumes the
+  manifest. Now that the URL is provably serving content, the
+  precondition is cleared.
+- Watch the first scheduled cron fire (2026-06-27 08:00 UTC) — should
+  log `refresh: no manifest URL provided; seeds-only refresh` and
+  diff clean (no PR), unless the cron and the smoke disagree on
+  the seed-only baseline, in which case there's an axis-drift bug
+  worth running down.
+
 ### Added
 - `site/CNAME` set to `icqubit.com` (Mark-owned domain for the deploy
   target).

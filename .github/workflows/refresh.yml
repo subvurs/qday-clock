@@ -39,10 +39,15 @@ permissions:
   contents: write
   pull-requests: write
 
-defaults:
-  run:
-    working-directory: public_interest/qday_clock
-
+# Note: no `defaults: run: working-directory:` block. An earlier
+# revision of this workflow set it to `public_interest/qday_clock`
+# back when qday-clock lived as a subdirectory of the subvurs
+# monorepo. In the standalone subvurs/qday-clock repo the `qday_clock`
+# package lives at the repo root, so leaving the old default in place
+# made every step fail with "No such file or directory" the moment
+# workflow_dispatch was first exercised end-to-end (2026-06-27 K11
+# smoke, run 28272363714). Removed rather than corrected to `.`
+# because the default working directory is already the repo root.
 jobs:
   refresh:
     runs-on: ubuntu-latest

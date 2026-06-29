@@ -85,6 +85,19 @@ name: refresh
 #     PR merges. Once this PR merges and refresh re-runs, the
 #     auto-refresh PR should diff exactly one file
 #     (`site/data/clock_state.json`).
+#   * v0.8 (this PR, 2026-06-29): log fix — disambiguate the manifest
+#     log line. Pre-v0.8 it printed `commit={curator_commit[:12]}`,
+#     which read as the manifest's data version but is actually the
+#     upstream curator *package*'s code commit (pinned at 55efcfa since
+#     2026-06-26). When the first scheduled cron ran today and the
+#     log line read `190 articles, commit=55efcfa5c591` — identical
+#     `commit=` to yesterday's `171 articles, commit=55efcfa5c591` —
+#     it triggered a confused investigation into whether the curator
+#     was force-pushing stale data, when in fact different manifests
+#     legitimately shared the same code commit. Fix: log
+#     `generated_at` (manifest creation timestamp, the actual data
+#     identifier) alongside the renamed `curator_code_commit`. No
+#     behaviour change; purely cosmetic / debuggability.
 
 on:
   workflow_dispatch:
@@ -191,8 +204,21 @@ jobs:
               pinned = os.environ.get("QDAY_PINNED_PUBKEY_B64") or None
               m = fetch_manifest(manifest_path, expected_pubkey=pinned)
               signals = signals + classify_manifest(m, observed_at=observed_at)
+              # Log both identifiers explicitly. `curator_commit` is the
+              # *code* commit of the upstream curator package (pinned at
+              # 55efcfa since 2026-06-26 even though the corpus changes
+              # daily) — it does NOT tell you whether the manifest is
+              # fresh. `generated_at` is the manifest's actual creation
+              # timestamp and is the field to key on when asking "is this
+              # today's data?". Pre-fix the bare `commit=...` log line
+              # made it look like the data identifier, which led to a
+              # confusing investigation on 2026-06-29 when the same commit
+              # hash appeared on a 171-article manifest and a 190-article
+              # manifest. They were different manifests; the field was
+              # poorly named.
               print(f"refresh: ingested manifest with {len(m.articles)} articles, "
-                    f"commit={m.curator_commit[:12]}")
+                    f"generated_at={m.generated_at.isoformat()} "
+                    f"curator_code_commit={m.curator_commit[:12]}")
           else:
               print("refresh: no manifest URL provided; seeds-only refresh")
 

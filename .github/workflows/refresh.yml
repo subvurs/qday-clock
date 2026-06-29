@@ -42,6 +42,19 @@ name: refresh
 #     regenerate clock_state.json from seeds at every deploy; that
 #     is fixed in a separate follow-up PR (Option α step 2) so the
 #     two behaviour changes are independently reviewable.
+#   * v0.5 (this PR, 2026-06-28): sign the refresh-time manifest. The
+#     pre-v0.5 inline script wrote canonical-but-UNSIGNED JSON; CI's
+#     "Verify signed manifest (if present)" step (ci.yml:48) failed
+#     the very first auto-refresh PR (#7) with
+#     `missing signature or signing_pubkey field`. This was latent
+#     under v0.2-v0.3 because the diff-detection bug meant the PR
+#     never opened; v0.4 (PR #5) unblocked PR creation and surfaced
+#     it. Fix: import `write_signed_manifest` and re-use
+#     QDAY_SIGNING_KEY_B64 so refresh-time and deploy-time signatures
+#     are byte-identical for identical content (the deploy re-sign in
+#     pages-deploy.yml is then idempotent for the common case). If
+#     the secret is unset we raise rather than write an unsigned
+#     manifest, per CLAUDE.md §8.
 
 on:
   workflow_dispatch:
@@ -109,18 +122,32 @@ jobs:
       - name: Recompute clock_state.json
         env:
           QDAY_PINNED_PUBKEY_B64: ${{ secrets.QDAY_CURATOR_PUBKEY_B64 }}
+          QDAY_SIGNING_KEY_B64: ${{ secrets.QDAY_SIGNING_KEY_B64 }}
         run: |
           # The refresh CLI is post-MVP; until it lands, we drive the
           # pipeline directly via a small inline script. Per CLAUDE.md
           # §8 every failure mode raises rather than being swallowed.
+          #
+          # Signing note (2026-06-28): the committed clock_state.json
+          # must carry a valid signature + signing_pubkey so reviewers
+          # on the auto-refresh PR can verify the manifest end-to-end
+          # (and so the `ci.yml` "Verify signed manifest (if present)"
+          # step passes). We re-use QDAY_SIGNING_KEY_B64 — the same key
+          # the deploy workflow uses to re-sign at publish — so refresh
+          # and deploy produce byte-identical canonical output for
+          # identical content. The deploy-time re-sign is then
+          # idempotent for the common case (refresh-only sources, no
+          # build code change). If/when refresh and deploy keys split,
+          # this step will switch to a dedicated QDAY_REFRESH_SIGNING_KEY_B64.
           python - <<'PY'
-          import json
+          import base64
           import os
           from datetime import datetime, timezone
           from pathlib import Path
 
-          from qday_clock.core.canonical import canonicalize
+          from qday_clock.core.signing import SigningKey
           from qday_clock.ingest.seed_signals import load_seed_signals
+          from qday_clock.render.manifest import write_signed_manifest
           from qday_clock.score.clock import compute_clock_state
 
           observed_at = datetime.now(tz=timezone.utc)
@@ -140,15 +167,23 @@ jobs:
               print("refresh: no manifest URL provided; seeds-only refresh")
 
           state = compute_clock_state(signals)
+
+          # Fail-loud if the signing-key secret is missing. Per CLAUDE.md
+          # §8 we never publish (or PR) an unsigned manifest.
+          signing_key_b64 = os.environ.get("QDAY_SIGNING_KEY_B64")
+          if not signing_key_b64:
+              raise RuntimeError(
+                  "QDAY_SIGNING_KEY_B64 is not set; refusing to write an "
+                  "unsigned clock_state.json. See refresh.yml signing note."
+              )
+          signing_key = SigningKey.from_bytes(base64.b64decode(signing_key_b64))
+
           out = Path("site/data/clock_state.json")
-          out.parent.mkdir(parents=True, exist_ok=True)
-          out.write_text(
-              json.dumps(json.loads(canonicalize(state.model_dump(mode='json'))), indent=2) + "\n",
-              encoding="utf-8",
-          )
+          canonical_sha = write_signed_manifest(state, out, signing_key)
           print(f"refresh: wrote {out} "
                 f"clock_score={state.clock_score:.4f} "
-                f"clock_hours={state.clock_hours:.2f}")
+                f"clock_hours={state.clock_hours:.2f} "
+                f"canonical_sha={canonical_sha[:12]}")
           PY
 
       - name: Diff vs current site/data

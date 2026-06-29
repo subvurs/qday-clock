@@ -1,2 +1,0 @@
-[console_scripts]
-qday-clock = qday_clock.__main__:main

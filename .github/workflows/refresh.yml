@@ -65,6 +65,26 @@ name: refresh
 #     manifest force-push; this PR mirrors it into subvurs/qday-clock
 #     under the same name (DEPLOY_TOKEN). End-to-end verified manually
 #     on 2026-06-29 immediately before this PR landed.
+#   * v0.7 (this PR, 2026-06-29): scope the auto-refresh commit to
+#     `site/data/` only. v0.6's end-to-end verification surfaced that
+#     PRs #9 and #10 were carrying 32 unintended files in addition to
+#     the legitimate `site/data/clock_state.json` update: 24
+#     `qday_clock/**/__pycache__/*.pyc` files (from the `pip install -e .`
+#     install step), 7 `qday_clock.egg-info/*` files (same step), and
+#     the runtime `_refresh/curator_manifest.json` scratch (from the
+#     `Fetch Curator manifest` step). Root cause: the repo had no
+#     `.gitignore` AND `peter-evans/create-pull-request` defaults to
+#     committing every modified-or-untracked file in the runner's tree.
+#     PR #9 actually landed all 32 artifacts in `main` (32 lines of
+#     this commit's git rm), and PR #10 was about to refresh them with
+#     newer bytecode. Fix: add a project-wide `.gitignore`, `git rm` the
+#     32 already-tracked artifacts, and pass `add-paths: site/data/`
+#     to peter-evans as belt-and-suspenders for any future workflow
+#     step that writes a tracked file outside `site/data/`.
+#     PR #10 will be closed in favour of the next refresh once this
+#     PR merges. Once this PR merges and refresh re-runs, the
+#     auto-refresh PR should diff exactly one file
+#     (`site/data/clock_state.json`).
 
 on:
   workflow_dispatch:
@@ -240,6 +260,19 @@ jobs:
           branch: data/auto-refresh
           delete-branch: true
           title: "refresh: clock_state.json update"
+          # Scope the commit strictly to refresh output. Without this,
+          # peter-evans/create-pull-request stages every modified-or-untracked
+          # file in the runner's working tree — which is how PRs #9 and #10
+          # ended up carrying 24 `qday_clock/**/__pycache__/*.pyc` files,
+          # 7 `qday_clock.egg-info/*` files, and the runtime
+          # `_refresh/curator_manifest.json` scratch from the earlier
+          # `pip install -e .` and `Fetch Curator manifest` steps. With
+          # `.gitignore` now in place (added in the same PR as this filter)
+          # those artifacts are no longer "untracked" anyway, but the
+          # explicit `add-paths` scope is belt-and-suspenders: if any
+          # future workflow step writes a tracked file outside site/data/,
+          # we still refuse to drag it into the auto-refresh PR.
+          add-paths: site/data/
           body: |
             Automated refresh of `site/data/clock_state.json`.
 

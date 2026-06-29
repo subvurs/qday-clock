@@ -1,1 +1,0 @@
-qday_clock

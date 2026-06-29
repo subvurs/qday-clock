@@ -1,0 +1,115 @@
+Metadata-Version: 2.4
+Name: qday-clock
+Version: 0.2.5
+Summary: Evidence-driven Q-day reading: how close are cryptographically-relevant quantum computers (CRQCs)?
+Author: Subvurs
+License: MIT License
+        
+        Copyright (c) 2026 Subvurs
+        
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+        
+        The above copyright notice and this permission notice shall be included in all
+        copies or substantial portions of the Software.
+        
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
+        
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Topic :: Security :: Cryptography
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: pydantic>=2.5
+Requires-Dist: cryptography>=42
+Requires-Dist: jinja2>=3.1
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4; extra == "dev"
+Requires-Dist: pytest-cov>=4.1; extra == "dev"
+Requires-Dist: ruff>=0.4; extra == "dev"
+Requires-Dist: mypy>=1.10; extra == "dev"
+Dynamic: license-file
+
+# Q-day Clock
+
+An evidence-driven *reading* — not a prediction — of how close
+cryptographically-relevant quantum computers (CRQCs) are to arriving,
+under a public-evidence-only threat model targeting **RSA-2048 (Shor)**
+and **AES-128 weakening (Grover)**.
+
+This project produces a single signed JSON artifact (`clock_state.json`)
+plus a static site that displays:
+
+1. A symbolic 24-hour clock (general-public framing)
+2. A 5-axis dashboard with per-axis drill-down (rigor framing)
+3. A methodology page explaining every input, weight, and gate
+
+## What this is
+
+- A **reading** of public evidence, refreshed on a regular cadence.
+- Anchored to external authoritative baselines:
+  - [GRI Quantum Threat Timeline](https://globalriskinstitute.org/)
+    (annual cryptographer survey)
+  - NIST FIPS 203 / 204 / 205 (the standardized PQC algorithms)
+  - NSA CNSA 2.0 migration deadlines (2025 / 2030 / 2033)
+  - Gidney-Ekera 2019 (and peer-reviewed successors) for Shor resource estimates
+- Hardened against Goodhart exploitation: every step-change requires
+  multi-source confirmation; every gate that fires is logged in the
+  CHANGELOG.
+
+## What this is NOT
+
+- **Not a prediction.** The page never says "Q-day will be in YYYY."
+- **Not a probability.** This is a reading, not a Bayesian posterior.
+- **Not financial or security advice.** See `docs/about.html`.
+- **Not a substitute for** crypto-agility planning or a QKD-deployment
+  audit. (For the latter, see [QCert](../../commercialization/path_d_qcert/).)
+- **Not classified-aware.** Public evidence only.
+
+## Read the methodology first
+
+The credibility of this clock lives or dies on
+[`METHODOLOGY.md`](METHODOLOGY.md). It documents:
+
+- The threat model (`THREAT_MODEL.md`)
+- The 5 axes and their `[0, 1]` anchor mappings
+- Current weights and the rationale for each
+- Every Goodhart gate and what it blocks
+- Confidence-band derivation
+- What this clock *cannot* tell you
+
+## Layout
+
+```
+qday_clock/        # Python package
+site/              # static site (HTML/SVG/CSS, no third-party trackers)
+data/              # external anchor data (GRI, NIST/NSA, seed signals)
+tests/             # unit, golden, adversarial, forbidden-language lint
+docs/              # ARCHITECTURE / GATE_CATALOG / SIGNAL_CATALOG
+.github/workflows/ # CI, refresh, pages-deploy
+```
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
+
+## Status
+
+**MVP (v0.1.0)** — 1 of 5 axes live (Axis 1: Logical Qubit Progress),
+3 of 8 gates live (`StaticPointGate`, `SingleSourceCapGate`,
+`ThresholdGuard`). See [`CHANGELOG.md`](CHANGELOG.md) for the
+post-MVP roadmap.

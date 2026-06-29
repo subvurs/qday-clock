@@ -105,6 +105,15 @@ class BuildConfig:
     allow_ephemeral_key: bool = False
     now: datetime | None = None
     extra_signals: tuple[Signal, ...] = ()
+    #: If True, skip the ingest + score steps and treat the committed
+    #: ``site/data/clock_state.json`` as the source of truth: re-sign it
+    #: with the production signing key and render the HTML from it. This
+    #: is the Option α step 2 path — it lets the refresh workflow (which
+    #: ingests the Curator manifest) own scoring, and lets the pages
+    #: deploy own only signing + rendering. Without this flag, every
+    #: deploy from ``main`` regenerates state from seeds and silently
+    #: overwrites whatever the refresh workflow committed.
+    use_committed_state: bool = False
 
 
 @dataclass
@@ -245,21 +254,62 @@ def build_site(config: BuildConfig) -> BuildReport:
     static and lives in the repo; CI / deploy is responsible for
     publishing it alongside the rendered HTML.
     """
-    # ---- 1. Ingest ---------------------------------------------------
+    manifest_path = config.site_dir / "data" / "clock_state.json"
+
+    # The sources page lists seed signals (manifest-classified signals
+    # are summarised in the state's per-axis ``contributing_signal_ids``
+    # but their full Signal objects don't round-trip through the
+    # manifest). Loading seeds is therefore needed for the sources page
+    # in BOTH the compute path and the use-committed-state path. This
+    # matches the pre-Option-α deploy behaviour, where the sources page
+    # has always been seed-driven.
     signals = list(load_seed_signals(config.seed_signals_path))
     if config.extra_signals:
         signals.extend(config.extra_signals)
 
-    # ---- 2. Score ----------------------------------------------------
-    manifest_path = config.site_dir / "data" / "clock_state.json"
-    previous_axes = _load_previous_axes_readings(manifest_path)
-    state = compute_clock_state(
-        signals,
-        now=config.now,
-        previous_axes_readings=previous_axes,
-    )
+    if config.use_committed_state:
+        # ---- 1+2. Use committed state ------------------------------
+        # Skip ingest + score: the refresh workflow already produced
+        # the scored, manifest-fed state in site/data/clock_state.json,
+        # and that file is what we want the deploy to publish. Fail
+        # closed if the file is missing — silently falling back to a
+        # fresh seeds-only score would defeat the whole point of the
+        # Option α pages-deploy fix.
+        if not manifest_path.exists():
+            raise IngestError(
+                (
+                    "use_committed_state=True but committed manifest is "
+                    f"missing: {manifest_path}. The refresh workflow is "
+                    "the producer of this file; check that the previous "
+                    "refresh PR was merged and that site/data/ is "
+                    "tracked in the repo."
+                ),
+                error_code="build.committed_state_missing",
+            )
+        try:
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise IngestError(
+                (f"committed manifest is not valid JSON: {manifest_path}: {exc}"),
+                error_code="build.committed_state_bad_json",
+            ) from exc
+        state = ClockState.model_validate(payload)
+    else:
+        # ---- 1. Ingest (already loaded above) ----------------------
+        # ---- 2. Score ----------------------------------------------
+        previous_axes = _load_previous_axes_readings(manifest_path)
+        state = compute_clock_state(
+            signals,
+            now=config.now,
+            previous_axes_readings=previous_axes,
+        )
 
     # ---- 3. Sign + persist manifest ---------------------------------
+    # In use_committed_state mode this re-signs the committed state with
+    # the deploy-time production signing key. The deployed pubkey is
+    # the one embedded in about.html for public verification; the
+    # refresh-time signature is internal bookkeeping and is intentionally
+    # overwritten here.
     signing_key, used_ephemeral = _load_signing_key(config)
     canonical_sha = write_signed_manifest(state, manifest_path, signing_key)
 
@@ -403,6 +453,18 @@ def _build_parser() -> argparse.ArgumentParser:
             "wall-clock UTC."
         ),
     )
+    p.add_argument(
+        "--use-committed-state",
+        action="store_true",
+        help=(
+            "Skip ingest + score and consume the committed "
+            "site/data/clock_state.json as the source of truth, then "
+            "re-sign + render. Use this in the pages-deploy workflow so "
+            "the manifest-fed score produced by the refresh workflow is "
+            "actually published, instead of being silently overwritten "
+            "by a fresh seeds-only score at every deploy."
+        ),
+    )
     return p
 
 
@@ -417,6 +479,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         signing_key_b64_env=args.signing_key_b64_env,
         allow_ephemeral_key=args.allow_ephemeral_key,
         now=now,
+        use_committed_state=args.use_committed_state,
     )
     try:
         report = build_site(config)

@@ -46,9 +46,36 @@ jobs:
           fi
           echo "QDAY_SIGNING_KEY_B64 is set (length=${#QDAY_SIGNING_KEY_B64})."
 
-      # The real renderer: ingest seed signals -> score (with all gates) ->
-      # sign clock_state.json -> render all 5 HTML pages into _site/. This
-      # is the qday_clock.build entry point added in v0.2.2.
+      # Copy the committed site/data/ into _site/ so the build step
+      # (with --use-committed-state) can read the manifest-fed
+      # clock_state.json that the refresh workflow produced. Pre-Option-α
+      # this step did not exist and the build always recomputed from
+      # seeds; that silently overwrote the refresh-produced state at
+      # every deploy.
+      - name: Stage committed site/data
+        run: |
+          mkdir -p _site/data
+          if [ -f site/data/clock_state.json ]; then
+            cp site/data/clock_state.json _site/data/clock_state.json
+            echo "Staged committed clock_state.json:"
+            ls -la _site/data/
+          else
+            echo "ERROR: site/data/clock_state.json is missing from the tree." >&2
+            echo "ERROR: the refresh workflow is the producer; check that the" >&2
+            echo "ERROR: most recent refresh PR was merged and that site/data/" >&2
+            echo "ERROR: is tracked in the repo." >&2
+            exit 1
+          fi
+
+      # The real renderer: consume the committed clock_state.json
+      # (refresh workflow's output), re-sign it with the production
+      # signing key, and render all 5 HTML pages into _site/. This is
+      # the qday_clock.build entry point with --use-committed-state.
+      #
+      # Pre-Option-α this step ran without --use-committed-state and
+      # called compute_clock_state from seeds every deploy — which
+      # silently overwrote the manifest-fed score produced by the
+      # refresh workflow. Adding --use-committed-state closes that gap.
       - name: Render static site
         env:
           QDAY_SIGNING_KEY_B64: ${{ secrets.QDAY_SIGNING_KEY_B64 }}
@@ -56,7 +83,8 @@ jobs:
           python -m qday_clock.build \
             --site-dir _site \
             --seed-signals data/seed_signals.json \
-            --methodology METHODOLOGY.md
+            --methodology METHODOLOGY.md \
+            --use-committed-state
 
       # qday_clock.build deliberately does not copy site/assets/ (its job
       # is to render pages + sign the manifest, not to manage static

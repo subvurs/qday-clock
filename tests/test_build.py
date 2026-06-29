@@ -235,6 +235,157 @@ def test_cli_main_returns_zero_on_success(
         assert page in captured.out
 
 
+# ---------------------------------------------------------------------------
+# Option α step 2: use_committed_state path
+# ---------------------------------------------------------------------------
+
+
+def test_use_committed_state_reads_existing_manifest(tmp_path: Path) -> None:
+    """With ``use_committed_state=True``, the build must publish the
+    values already in ``site/data/clock_state.json`` rather than
+    recomputing from seeds.
+
+    This is the contract that lets the refresh workflow own scoring
+    (with a Curator manifest) while the deploy workflow only signs +
+    renders. Without this path, every push to main silently overwrites
+    the refresh-produced state with a fresh seeds-only score.
+    """
+    # First: produce a "refresh-style" committed state via a normal
+    # build. Capture its score / hours so we can assert they survive
+    # the second build.
+    config_a = _config(tmp_path)
+    report_a = build_site(config_a)
+    committed_score = report_a.state.clock_score
+    committed_hours = report_a.state.clock_hours
+
+    # Second: build with use_committed_state=True in a fresh tmp dir
+    # whose site/data/ is seeded with the first build's manifest.
+    other = tmp_path / "deploy"
+    (other / "data").mkdir(parents=True)
+    (other / "data" / "clock_state.json").write_text(
+        report_a.manifest_path.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    config_b = _config(
+        tmp_path,
+        site_dir=other,
+        use_committed_state=True,
+        # Pass a `now` that would normally produce a different score —
+        # if use_committed_state is honoured, the score must NOT change.
+        now=datetime(2027, 1, 1, tzinfo=UTC),
+    )
+    report_b = build_site(config_b)
+
+    assert report_b.state.clock_score == committed_score
+    assert report_b.state.clock_hours == committed_hours
+    # All 5 pages still rendered.
+    for name in _EXPECTED_PAGES:
+        assert (other / name).exists()
+    # Signature still verifies under the new build's signing key.
+    payload = json.loads(report_b.manifest_path.read_text(encoding="utf-8"))
+    sig = payload.pop("signature")
+    pub = payload.pop("signing_pubkey")
+    assert verify_payload(payload, sig, pub) is True
+
+
+def test_use_committed_state_missing_file_fails_closed(tmp_path: Path) -> None:
+    """``use_committed_state=True`` with no committed file must NOT
+    silently fall back to recomputing from seeds — that would defeat
+    the whole point of the Option α deploy fix. CLAUDE.md §8."""
+    config = _config(tmp_path, use_committed_state=True)
+    # Deliberately do NOT create site_dir/data/clock_state.json.
+    with pytest.raises(IngestError) as excinfo:
+        build_site(config)
+    assert excinfo.value.error_code == "build.committed_state_missing"
+
+
+def test_use_committed_state_bad_json_fails_closed(tmp_path: Path) -> None:
+    """Corrupt committed state must raise rather than silently fall
+    back to a seeds-only score. CLAUDE.md §8."""
+    config = _config(tmp_path, use_committed_state=True)
+    (config.site_dir / "data").mkdir(parents=True)
+    (config.site_dir / "data" / "clock_state.json").write_text(
+        "not json at all",
+        encoding="utf-8",
+    )
+    with pytest.raises(IngestError) as excinfo:
+        build_site(config)
+    assert excinfo.value.error_code == "build.committed_state_bad_json"
+
+
+def test_use_committed_state_re_signs_with_deploy_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The deploy-time signing key overwrites the committed signature,
+    so the deployed pubkey matches the one embedded in about.html for
+    public verification."""
+    # First build produces a committed state with an ephemeral key.
+    config_a = _config(tmp_path)
+    report_a = build_site(config_a)
+    refresh_time_pub = json.loads(report_a.manifest_path.read_text(encoding="utf-8"))[
+        "signing_pubkey"
+    ]
+
+    # Second build with use_committed_state=True under a fixed deploy
+    # key — pubkey must change to the deploy key's pubkey.
+    deploy_key = SigningKey.generate()
+    monkeypatch.setenv(
+        SIGNING_KEY_B64_ENV,
+        base64.b64encode(deploy_key.to_bytes()).decode("ascii"),
+    )
+    other = tmp_path / "deploy"
+    (other / "data").mkdir(parents=True)
+    (other / "data" / "clock_state.json").write_text(
+        report_a.manifest_path.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    config_b = _config(
+        tmp_path,
+        site_dir=other,
+        use_committed_state=True,
+        allow_ephemeral_key=False,
+    )
+    build_site(config_b)
+    deployed_pub = json.loads((other / "data" / "clock_state.json").read_text(encoding="utf-8"))[
+        "signing_pubkey"
+    ]
+    assert deployed_pub == deploy_key.verify_key.to_b64()
+    assert deployed_pub != refresh_time_pub
+
+
+def test_use_committed_state_cli_flag(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    """The CLI flag must wire through to BuildConfig.use_committed_state."""
+    # Seed a committed state via a normal build, then re-run CLI with
+    # --use-committed-state and a `now` that would change scores.
+    config_a = _config(tmp_path)
+    report_a = build_site(config_a)
+    committed_score = report_a.state.clock_score
+
+    other = tmp_path / "deploy"
+    (other / "data").mkdir(parents=True)
+    (other / "data" / "clock_state.json").write_text(
+        report_a.manifest_path.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    rc = build_main(
+        [
+            "--site-dir",
+            str(other),
+            "--seed-signals",
+            str(REPO_ROOT / "data" / "seed_signals.json"),
+            "--methodology",
+            str(REPO_ROOT / "METHODOLOGY.md"),
+            "--allow-ephemeral-key",
+            "--now",
+            "2027-01-01T00:00:00Z",
+            "--use-committed-state",
+        ]
+    )
+    assert rc == 0
+    redeployed = json.loads((other / "data" / "clock_state.json").read_text(encoding="utf-8"))
+    assert redeployed["clock_score"] == committed_score
+
+
 def test_cli_main_returns_one_on_missing_key(
     tmp_path: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:

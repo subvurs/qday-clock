@@ -6,21 +6,22 @@ name: refresh
 #
 # Status:
 #   * v0.1.0: workflow_dispatch only — no upstream Curator artifact.
-#   * v0.2 (this PR, 2026-06-26): daily cron ENABLED. The Curator side
+#   * v0.2 (2026-06-26): daily cron ENABLED. The Curator side
 #     (subvurs/quantum-curator, commits 7847250 + 55efcfa) now produces
 #     a signed CuratorManifest each day and force-pushes it to the
 #     `manifest` branch of the curator repo. The signing pubkey is in
-#     the QDAY_CURATOR_PUBKEY_B64 repo secret.
-#   * NOT YET in this PR (deliberate scope cut): the cron path still
-#     runs SEEDS-ONLY because the `Fetch Curator manifest` step is
-#     gated on the workflow_dispatch `curator_manifest_url` input,
-#     which is empty under cron. A follow-up PR will default that URL
-#     to raw.githubusercontent.com/subvurs/quantum-curator/manifest/
-#     curator_manifest.json so the cron path actually consumes the
-#     manifest. Doing it in two PRs so each behavior change is
-#     reviewable on its own.
-#   * Manual `workflow_dispatch` with an explicit URL keeps working
-#     and IS the verified consumption path right now.
+#     the QDAY_CURATOR_PUBKEY_B64 repo secret. Cron still ran
+#     SEEDS-ONLY at this point because the input was empty under cron.
+#   * v0.3 (this PR, 2026-06-27): `curator_manifest_url` now defaults
+#     to the raw.githubusercontent.com manifest-branch URL when the
+#     input is empty (true for every `schedule` invocation, plus
+#     workflow_dispatch with the field left blank). The `Fetch Curator
+#     manifest` step always runs and its `if:` gate is removed. To
+#     run truly seeds-only, use the local CLI; the workflow itself no
+#     longer supports it. Verified end-to-end smoke on 2026-06-27 cron
+#     fired SEEDS-ONLY (clock_score=0.2589 / 17.79h); manual
+#     workflow_dispatch with explicit URL gave 0.4153 / 14.03h —
+#     this PR makes cron behave like the latter.
 
 on:
   workflow_dispatch:
@@ -28,10 +29,12 @@ on:
       curator_manifest_url:
         description: >-
           (Optional) HTTPS URL of a signed Curator manifest JSON to
-          download and feed through fetch_manifest. Leave blank for a
-          seeds-only refresh.
+          download and feed through fetch_manifest. Leave blank to
+          use the default manifest URL on the curator repo's
+          `manifest` branch.
         required: false
         type: string
+        default: ""
   schedule:
     - cron: "0 8 * * *"   # daily 08:00 UTC — Curator finishes ~07:30 UTC
 
@@ -66,13 +69,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .
 
-      - name: Fetch Curator manifest (optional)
+      # Fetch the Curator manifest. Defaults to the manifest-branch
+      # raw URL on subvurs/quantum-curator when the workflow_dispatch
+      # input is empty (always true under `schedule`). Fail-loud per
+      # CLAUDE.md §8 — if the manifest isn't reachable we want the
+      # workflow to fail, not silently fall back to seeds-only.
+      - name: Fetch Curator manifest
         id: fetch
-        if: ${{ inputs.curator_manifest_url != '' }}
+        env:
+          MANIFEST_URL: ${{ inputs.curator_manifest_url || 'https://raw.githubusercontent.com/subvurs/quantum-curator/manifest/curator_manifest.json' }}
         run: |
           mkdir -p _refresh
+          echo "Fetching: ${MANIFEST_URL}"
           curl -fSL --retry 3 \
-            "${{ inputs.curator_manifest_url }}" \
+            "${MANIFEST_URL}" \
             -o _refresh/curator_manifest.json
           ls -la _refresh/
 

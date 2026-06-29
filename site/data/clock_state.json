@@ -30,29 +30,35 @@
         "011b347fc057c5ec",
         "a901cc14a39f574e",
         "846e3d676e2f9b47",
-        "b8b07b2a3ce1f8c4"
+        "b8b07b2a3ce1f8c4",
+        "sig_d592af7f7772b029"
       ],
-      "n_independent_sources": 15,
+      "n_independent_sources": 16,
       "note": null,
-      "reading": 0.45579929606286324
+      "reading": 0.4603436880370126
     },
     "physical_scaling": {
       "axis": "physical_scaling",
-      "confidence_band_high": 0.73,
-      "confidence_band_low": 0.42999999999999994,
-      "contributing_signal_ids": [],
-      "n_independent_sources": 0,
-      "note": "axis cold-start \u2014 GRI 2024 baseline floor",
-      "reading": 0.58
+      "confidence_band_high": 0.11020599913279626,
+      "confidence_band_low": 0,
+      "contributing_signal_ids": [
+        "sig_011b47698712e180",
+        "sig_500e4dc65c9f39dd"
+      ],
+      "n_independent_sources": 2,
+      "note": null,
+      "reading": 0.014767509221251912
     },
     "pqc_migration": {
       "axis": "pqc_migration",
-      "confidence_band_high": 0.73,
-      "confidence_band_low": 0.42999999999999994,
-      "contributing_signal_ids": [],
-      "n_independent_sources": 0,
-      "note": "axis cold-start \u2014 GRI 2024 baseline floor",
-      "reading": 0.58
+      "confidence_band_high": 0.2,
+      "confidence_band_low": 0,
+      "contributing_signal_ids": [
+        "sig_1898e9ffcecb658d"
+      ],
+      "n_independent_sources": 1,
+      "note": null,
+      "reading": 0.1
     },
     "resource_estimate": {
       "axis": "resource_estimate",
@@ -64,10 +70,10 @@
       "reading": 0.58
     }
   },
-  "clock_hours": 17.78520422362282,
-  "clock_score": 0.2589498240157158,
-  "confidence_band_hours_high": 23.22,
-  "confidence_band_hours_low": 11.82,
+  "clock_hours": 14.03277483858142,
+  "clock_score": 0.4153010483924409,
+  "confidence_band_hours_high": 18.408,
+  "confidence_band_hours_low": 8.891258403121935,
   "gates_fired": [
     {
       "fired": true,
@@ -96,14 +102,28 @@
       "name": "RoadmapWeightCapGate",
       "reason": "roadmap signal at 0.350 exceeds cap 0.3; multiplier 0.8571",
       "target": "b8b07b2a3ce1f8c4"
+    },
+    {
+      "fired": true,
+      "multiplier": 0.5,
+      "name": "ContrastSaturationGate",
+      "reason": "signal 'sig_500e4dc65c9f39dd' share 1.000 > cap 0.5; multiplier 0.5000",
+      "target": "sig_500e4dc65c9f39dd"
+    },
+    {
+      "fired": true,
+      "multiplier": 0.5,
+      "name": "ContrastSaturationGate",
+      "reason": "signal 'sig_1898e9ffcecb658d' share 1.000 > cap 0.5; multiplier 0.5000",
+      "target": "sig_1898e9ffcecb658d"
     }
   ],
-  "generated_at": "2026-06-29T00:13:50.600934Z",
+  "generated_at": "2026-06-29T02:28:30.627081Z",
   "gri_baseline_label": "GRI 2024 \u2014 median CRQC arrival ~ 2034",
   "gri_baseline_year": 2024,
   "methodology_url": "https://icqubit.com/methodology.html",
-  "signature": "UFxJGsafpuS20fqNCqHJiD8O2WABeMSJQI6Whr8rU2fLQg/NXes6n6aMWaVaY/VYaT8pqigB3buANyGehiaBAw==",
-  "signing_pubkey": "gpg724ZUbG1PHzEI9L/dhcJGkbz5S/251STdeN3P0YU=",
+  "signature": null,
+  "signing_pubkey": null,
   "version": "0.1.0",
   "weights": {
     "error_rate": 0.3,

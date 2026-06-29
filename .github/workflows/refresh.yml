@@ -12,7 +12,7 @@ name: refresh
 #     `manifest` branch of the curator repo. The signing pubkey is in
 #     the QDAY_CURATOR_PUBKEY_B64 repo secret. Cron still ran
 #     SEEDS-ONLY at this point because the input was empty under cron.
-#   * v0.3 (this PR, 2026-06-27): `curator_manifest_url` now defaults
+#   * v0.3 (2026-06-27): `curator_manifest_url` now defaults
 #     to the raw.githubusercontent.com manifest-branch URL when the
 #     input is empty (true for every `schedule` invocation, plus
 #     workflow_dispatch with the field left blank). The `Fetch Curator
@@ -22,6 +22,26 @@ name: refresh
 #     fired SEEDS-ONLY (clock_score=0.2589 / 17.79h); manual
 #     workflow_dispatch with explicit URL gave 0.4153 / 14.03h —
 #     this PR makes cron behave like the latter.
+#   * v0.4 (this PR, 2026-06-28): fix the diff-detection bug that
+#     silently blocked v0.2-v0.3 from ever opening a PR. The original
+#     check `git diff --quiet site/data/` only inspects TRACKED files,
+#     and `site/data/clock_state.json` was never tracked in main. So
+#     even after v0.3 made the cron compute the right score (0.4153 /
+#     14.03h), the diff step always returned `changed=false` and the
+#     `peter-evans/create-pull-request` step was skipped. Verified by
+#     manual workflow_dispatch run 28340868988 on 2026-06-29:
+#     `refresh: ingested manifest with 171 articles ...
+#     clock_score=0.4153 clock_hours=14.03` immediately followed by
+#     `No change to site/data; nothing to PR.` and confirmed
+#     icqubit.com was still serving the seeds-only state (0.2589 /
+#     17.79h). This PR (a) commits the current deployed seeds-only
+#     state as the initial site/data/clock_state.json so future runs
+#     have something to diff against, and (b) switches the diff step
+#     to `git status --porcelain` so it also catches untracked-file
+#     creation defensively. NOTE: pages-deploy.yml will still
+#     regenerate clock_state.json from seeds at every deploy; that
+#     is fixed in a separate follow-up PR (Option α step 2) so the
+#     two behaviour changes are independently reviewable.
 
 on:
   workflow_dispatch:
@@ -134,12 +154,25 @@ jobs:
       - name: Diff vs current site/data
         id: diff
         run: |
-          if git diff --quiet site/data/; then
+          # Use `git status --porcelain` not `git diff --quiet` — the latter
+          # only sees TRACKED files, so it returned 0 (no diff) even when
+          # site/data/clock_state.json was being created from scratch. That
+          # bug silently blocked every cron from opening a PR between v0.2
+          # (2026-06-26) and this commit. The initial site/data/clock_state.json
+          # is now committed to main (PR landing this fix), so future
+          # refreshes will detect modifications. We still use
+          # `git status --porcelain` defensively in case a future change
+          # adds a sibling file under site/data/ that isn't yet tracked.
+          if [ -z "$(git status --porcelain site/data/)" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "No change to site/data; nothing to PR."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            git --no-pager diff --stat site/data/
+            echo "site/data/ changes detected:"
+            git status --porcelain site/data/
+            # `git diff --stat` only shows tracked-file deltas; for new files
+            # that's empty. Print it anyway for the common modification case.
+            git --no-pager diff --stat site/data/ || true
           fi
 
       - name: Open refresh PR

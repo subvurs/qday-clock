@@ -42,7 +42,7 @@ name: refresh
 #     regenerate clock_state.json from seeds at every deploy; that
 #     is fixed in a separate follow-up PR (Option α step 2) so the
 #     two behaviour changes are independently reviewable.
-#   * v0.5 (this PR, 2026-06-28): sign the refresh-time manifest. The
+#   * v0.5 (2026-06-28): sign the refresh-time manifest. The
 #     pre-v0.5 inline script wrote canonical-but-UNSIGNED JSON; CI's
 #     "Verify signed manifest (if present)" step (ci.yml:48) failed
 #     the very first auto-refresh PR (#7) with
@@ -55,6 +55,16 @@ name: refresh
 #     pages-deploy.yml is then idempotent for the common case). If
 #     the secret is unset we raise rather than write an unsigned
 #     manifest, per CLAUDE.md §8.
+#   * v0.6 (this PR, 2026-06-28): pass the DEPLOY_TOKEN PAT to
+#     peter-evans/create-pull-request so PR-triggered CI runs on the
+#     auto-refresh PR. Pre-v0.6 the action used the default GITHUB_TOKEN,
+#     which (by GitHub's anti-recursion design) does not fire downstream
+#     workflows — so ci.yml never ran and PR #10 sat with
+#     `action_required` status and no review-time signature check. The
+#     PAT was already configured in subvurs/quantum-curator for the
+#     manifest force-push; this PR mirrors it into subvurs/qday-clock
+#     under the same name (DEPLOY_TOKEN). End-to-end verified manually
+#     on 2026-06-29 immediately before this PR landed.
 
 on:
   workflow_dispatch:
@@ -210,10 +220,22 @@ jobs:
             git --no-pager diff --stat site/data/ || true
           fi
 
+      # PAT (DEPLOY_TOKEN) note (2026-06-28): we pass an explicit `token`
+      # so the PR is opened *as the PAT owner*, not as github-actions[bot].
+      # When peter-evans/create-pull-request uses the default GITHUB_TOKEN,
+      # PR-triggered workflows (ci.yml) do NOT run on the opened PR — this
+      # is GitHub's anti-recursion safeguard, documented in the action's
+      # README ("Events triggered by GITHUB_TOKEN will not create new
+      # workflow runs"). Without CI running, the auto-refresh PR sits
+      # with status `action_required` and no green check, which defeats
+      # the human-in-the-loop review gate. Using the DEPLOY_TOKEN PAT
+      # (already used by the quantum-curator repo for the manifest
+      # force-push) routes around this and CI runs normally.
       - name: Open refresh PR
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
+          token: ${{ secrets.DEPLOY_TOKEN }}
           commit-message: "refresh: recompute clock_state.json"
           branch: data/auto-refresh
           delete-branch: true

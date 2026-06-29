@@ -7,9 +7,20 @@ permitted but not part of MVP.
 
 The keyword lists are intentionally narrow and reviewed in
 ``docs/SIGNAL_CATALOG.md``; widening them is a CHANGELOG entry.
+
+Matching is token-boundary, not naive substring (see :func:`keyword_hit`).
+A keyword fires only when it is not flanked by additional ``[A-Za-z0-9]``
+characters, so ``"shor"`` no longer matches ``"shorten"``, ``"ecc"`` no
+longer matches ``"Rebecca"``, and ``"crystals"`` no longer matches
+``"quasicrystals"``. Non-word punctuation (hyphens, ``+``, spaces,
+commas) still counts as a boundary, so ``"CRYSTALS-Kyber"``,
+``"SPHINCS+"``, and ``"FIPS 203"`` continue to match.
 """
 
 from __future__ import annotations
+
+import re
+from functools import lru_cache
 
 # Axis 1 — Logical qubit progress
 LOGICAL_QUBIT_KEYWORDS: tuple[str, ...] = (
@@ -70,6 +81,7 @@ ERROR_RATE_KEYWORDS: tuple[str, ...] = (
     "t2",
     "coherence time",
     "measurement fidelity",
+    "fidelity",
     "qubit loss",
 )
 
@@ -91,3 +103,38 @@ PQC_MIGRATION_KEYWORDS: tuple[str, ...] = (
     "fips 205",
     "cnsa 2.0",
 )
+
+
+# ---------------------------------------------------------------------------
+# Token-boundary matching
+# ---------------------------------------------------------------------------
+
+
+@lru_cache(maxsize=512)
+def _compile_keyword(kw: str) -> re.Pattern[str]:
+    """Compile a keyword into a token-boundary regex.
+
+    A match requires that the keyword is not directly adjacent to another
+    ``[A-Za-z0-9]`` character on either side. Internal punctuation in the
+    keyword (``-``, ``+``, spaces) is matched literally via ``re.escape``;
+    such punctuation also serves as a boundary, so multi-word keywords like
+    ``"fips 203"`` and suffix-punctuated keywords like ``"sphincs+"`` match
+    as written.
+    """
+    return re.compile(
+        rf"(?<![A-Za-z0-9]){re.escape(kw)}(?![A-Za-z0-9])",
+        re.IGNORECASE,
+    )
+
+
+def keyword_hit(text: str, keywords: tuple[str, ...]) -> bool:
+    """Return True if any keyword token-matches ``text``.
+
+    Replaces the previous ``any(kw in text for kw in keywords)`` substring
+    test, which produced false positives where a keyword was a substring of
+    an unrelated word (``"shor"`` in ``"shorten"``, ``"ecc"`` in
+    ``"Rebecca"``, ``"crystals"`` in ``"quasicrystals"``). ``text`` is
+    expected to be already lower-cased by the caller; matching is
+    case-insensitive regardless.
+    """
+    return any(_compile_keyword(kw).search(text) for kw in keywords)

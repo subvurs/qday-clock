@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from qday_clock.extract.keywords import LOGICAL_QUBIT_KEYWORDS
+from qday_clock.extract.keywords import LOGICAL_QUBIT_KEYWORDS, keyword_hit
 
 #: Match e.g. "distance-7", "d = 7", "code distance 11"
 _DISTANCE_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -46,7 +46,7 @@ class LogicalQubitExtraction:
 def matches(title: str, summary: str) -> bool:
     """Return True if the article's text contains any logical-qubit keyword."""
     blob = f"{title}\n{summary}".lower()
-    return any(kw in blob for kw in LOGICAL_QUBIT_KEYWORDS)
+    return keyword_hit(blob, LOGICAL_QUBIT_KEYWORDS)
 
 
 def extract(title: str, summary: str) -> LogicalQubitExtraction | None:

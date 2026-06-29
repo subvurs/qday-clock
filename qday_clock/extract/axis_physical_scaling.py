@@ -32,7 +32,7 @@ import math
 import re
 from dataclasses import dataclass
 
-from qday_clock.extract.keywords import PHYSICAL_SCALING_KEYWORDS
+from qday_clock.extract.keywords import PHYSICAL_SCALING_KEYWORDS, keyword_hit
 
 #: Patterns for "N qubit(s)" / "N-qubit" / "N physical qubits" with
 #: thousands-comma tolerance. The qubit count is anchored to its unit
@@ -69,7 +69,7 @@ class PhysicalScalingExtraction:
 def matches(title: str, summary: str) -> bool:
     """Return True if the article's text contains any axis-2 keyword."""
     blob = f"{title}\n{summary}".lower()
-    return any(kw in blob for kw in PHYSICAL_SCALING_KEYWORDS)
+    return keyword_hit(blob, PHYSICAL_SCALING_KEYWORDS)
 
 
 def extract(title: str, summary: str) -> PhysicalScalingExtraction | None:

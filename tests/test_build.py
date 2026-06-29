@@ -322,9 +322,9 @@ def test_use_committed_state_re_signs_with_deploy_key(
     # First build produces a committed state with an ephemeral key.
     config_a = _config(tmp_path)
     report_a = build_site(config_a)
-    refresh_time_pub = json.loads(
-        report_a.manifest_path.read_text(encoding="utf-8")
-    )["signing_pubkey"]
+    refresh_time_pub = json.loads(report_a.manifest_path.read_text(encoding="utf-8"))[
+        "signing_pubkey"
+    ]
 
     # Second build with use_committed_state=True under a fixed deploy
     # key — pubkey must change to the deploy key's pubkey.
@@ -346,16 +346,14 @@ def test_use_committed_state_re_signs_with_deploy_key(
         allow_ephemeral_key=False,
     )
     build_site(config_b)
-    deployed_pub = json.loads(
-        (other / "data" / "clock_state.json").read_text(encoding="utf-8")
-    )["signing_pubkey"]
+    deployed_pub = json.loads((other / "data" / "clock_state.json").read_text(encoding="utf-8"))[
+        "signing_pubkey"
+    ]
     assert deployed_pub == deploy_key.verify_key.to_b64()
     assert deployed_pub != refresh_time_pub
 
 
-def test_use_committed_state_cli_flag(
-    tmp_path: Path, capsys: pytest.CaptureFixture
-) -> None:
+def test_use_committed_state_cli_flag(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
     """The CLI flag must wire through to BuildConfig.use_committed_state."""
     # Seed a committed state via a normal build, then re-run CLI with
     # --use-committed-state and a `now` that would change scores.
@@ -384,9 +382,7 @@ def test_use_committed_state_cli_flag(
         ]
     )
     assert rc == 0
-    redeployed = json.loads(
-        (other / "data" / "clock_state.json").read_text(encoding="utf-8")
-    )
+    redeployed = json.loads((other / "data" / "clock_state.json").read_text(encoding="utf-8"))
     assert redeployed["clock_score"] == committed_score
 
 

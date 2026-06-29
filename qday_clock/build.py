@@ -290,10 +290,7 @@ def build_site(config: BuildConfig) -> BuildReport:
             payload = json.loads(manifest_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
             raise IngestError(
-                (
-                    "committed manifest is not valid JSON: "
-                    f"{manifest_path}: {exc}"
-                ),
+                (f"committed manifest is not valid JSON: {manifest_path}: {exc}"),
                 error_code="build.committed_state_bad_json",
             ) from exc
         state = ClockState.model_validate(payload)

@@ -35,7 +35,7 @@ import math
 import re
 from dataclasses import dataclass
 
-from qday_clock.extract.keywords import RESOURCE_ESTIMATE_KEYWORDS
+from qday_clock.extract.keywords import RESOURCE_ESTIMATE_KEYWORDS, keyword_hit
 
 #: Sub-weight applied to AES-only signals — fold AES contribution to
 #: at most 0.3 of the axis. See module docstring + METHODOLOGY.md §3.
@@ -107,7 +107,7 @@ class ResourceEstimateExtraction:
 def matches(title: str, summary: str) -> bool:
     """Return True if the article's text contains any axis-3 keyword."""
     blob = f"{title}\n{summary}".lower()
-    return any(kw in blob for kw in RESOURCE_ESTIMATE_KEYWORDS)
+    return keyword_hit(blob, RESOURCE_ESTIMATE_KEYWORDS)
 
 
 def extract(title: str, summary: str) -> ResourceEstimateExtraction | None:

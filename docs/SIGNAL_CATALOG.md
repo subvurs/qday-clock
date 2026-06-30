@@ -7,6 +7,33 @@ public and reviewable.
 
 ---
 
+## Keyword matching semantics (token-boundary, all axes)
+
+Every axis gate (`matches()`) routes its keyword tuple through
+`qday_clock.extract.keywords.keyword_hit`, which matches each keyword as
+a **token** rather than a raw substring. A keyword fires only when it is
+not flanked by an alphanumeric character on either side
+(`(?<![A-Za-z0-9])…(?![A-Za-z0-9])`, case-insensitive).
+
+Punctuation — hyphen, `+`, space, comma — counts as a boundary, so
+compound terms still match: `CRYSTALS-Kyber`, `SPHINCS+`, `FIPS 203`,
+`ecc-256`, `RSA-2048`. What no longer matches are substring accidents
+that previously tripped a gate spuriously:
+
+| Keyword | Used to false-fire inside | Now |
+|---|---|---|
+| `shor` | "shorten", "offshore" | rejected |
+| `ecc` | "Rebecca", "ecclesiastical" | rejected |
+| `crystals` | "quasicrystals" | rejected |
+
+The live-manifest regression that motivated this: a quasicrystals
+materials-science article ("…materials known as quasicrystals…") tripped
+the **inverse** axis-5 (PQC migration) gate via the `crystals` substring,
+fabricating a PQC-adoption signal from an article with no cryptographic
+content. See `tests/extract/test_keyword_boundary.py`.
+
+---
+
 ## Axis 1 — Logical qubit progress (v0.1.0 — LIVE)
 
 **Weight**: 0.25
@@ -92,7 +119,15 @@ docstring for rationale.)
 
 **Keywords**: `qday_clock.extract.keywords.ERROR_RATE_KEYWORDS`
 
-Planned anchor map: 0.0 ← 1 % gate error (NISQ floor), 1.0 ← 10⁻⁵ gate
+The keyword set includes `fidelity` (added 2026-06-29): the axis-4
+extractor already converts a reported gate fidelity `F` to an implied
+error `1 − F`, but until now an article that cited *only* a fidelity
+(e.g. "99.9 % two-qubit gate fidelity") with no explicit "gate error"
+phrase never passed the keyword gate, so the conversion path was
+unreachable from the live manifest. With `fidelity` admitted, such
+articles reach the extractor and contribute their implied error.
+
+Anchor map: 0.0 ← 1 % gate error (NISQ floor), 1.0 ← 10⁻⁵ gate
 error (well below surface-code threshold).
 
 ---

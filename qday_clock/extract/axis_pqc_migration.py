@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from qday_clock.extract.keywords import PQC_MIGRATION_KEYWORDS
+from qday_clock.extract.keywords import PQC_MIGRATION_KEYWORDS, keyword_hit
 
 # Severity-tier keyword sets. Highest tier matched wins. All matched
 # against the lower-cased blob, so entries are lower-cased here.
@@ -106,7 +106,7 @@ class PQCMigrationExtraction:
 def matches(title: str, summary: str) -> bool:
     """Return True if the article's text contains any axis-5 keyword."""
     blob = f"{title}\n{summary}".lower()
-    return any(kw in blob for kw in PQC_MIGRATION_KEYWORDS)
+    return keyword_hit(blob, PQC_MIGRATION_KEYWORDS)
 
 
 def extract(title: str, summary: str) -> PQCMigrationExtraction | None:

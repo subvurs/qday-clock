@@ -23,7 +23,7 @@ import math
 import re
 from dataclasses import dataclass
 
-from qday_clock.extract.keywords import ERROR_RATE_KEYWORDS
+from qday_clock.extract.keywords import ERROR_RATE_KEYWORDS, keyword_hit
 
 # Error-rate keyword fragment. The numeric can appear EITHER side of the
 # keyword in real article text, so each pattern is checked in both
@@ -84,7 +84,7 @@ class ErrorRateExtraction:
 def matches(title: str, summary: str) -> bool:
     """Return True if the article's text contains any axis-4 keyword."""
     blob = f"{title}\n{summary}".lower()
-    return any(kw in blob for kw in ERROR_RATE_KEYWORDS)
+    return keyword_hit(blob, ERROR_RATE_KEYWORDS)
 
 
 def extract(title: str, summary: str) -> ErrorRateExtraction | None:

@@ -32,6 +32,65 @@ reading + PR link → human clicks Merge → `pages-deploy.yml` publishes to
 icqubit.com. One identity, one click. `MarsVMondo` collaborator access is
 now unused by the workflow (left in place; harmless).
 
+### Fixed — keyword token-boundary matching + axis-4 fidelity admission (2026-06-29)
+
+Two extractor-precision fixes. No package version bump; no golden-replay
+hash change (the golden fixtures reconstruct `Signal` objects directly
+from JSON and never run the keyword classifier, so these changes cannot
+shift the locked v0.1/v0.2 hashes — verified, both replay tests still
+green).
+
+- **Fix A — token-boundary keyword gates (all 5 axes).** Every axis
+  `matches()` now routes its keyword tuple through the new
+  `keywords.keyword_hit`, which matches each keyword as a token
+  (`(?<![A-Za-z0-9])…(?![A-Za-z0-9])`, case-insensitive) instead of a
+  raw `kw in blob` substring test. Punctuation still counts as a
+  boundary, so `CRYSTALS-Kyber`, `SPHINCS+`, `FIPS 203`, `RSA-2048`,
+  `ecc-256` keep matching; substring accidents (`shor`→"shorten",
+  `ecc`→"Rebecca", `crystals`→"quasicrystals") no longer fire.
+
+- **Fix B — admit `fidelity` into `ERROR_RATE_KEYWORDS`.** The axis-4
+  extractor already converts a reported fidelity `F` to an implied error
+  `1 − F`, but fidelity-only articles never passed the keyword gate.
+  Adding `fidelity` makes that conversion path reachable from the live
+  manifest.
+
+**Live-manifest clock impact (informational; manifest is not committed
+data).** Reproduced with `simfix.py` against the 2026-06-29 curator
+manifest (190 articles), `observed_at = 2026-06-29T12:00Z`:
+
+| Axis | Before (substring) | After (token-boundary + fidelity) |
+|---|---|---|
+| logical_qubits | 0.4603 (n=16) | 0.4603 (n=16) — unchanged |
+| physical_scaling | 0.0148 (n=2) | 0.0148 (n=2) — unchanged |
+| resource_estimate | 0.5800 GRI floor (n=0) | 0.5800 GRI floor (n=0) — unchanged |
+| error_rate | 0.5800 GRI floor (n=0) | **0.1890 (n=3)** — Fix B admits 3 fidelity articles |
+| pqc_migration | 0.1000 (n=1) | **0.5800 GRI floor (n=0)** — Fix A drops 1 false positive |
+| **clock_score** | **0.4153 / 14.03h** | **0.0580 / 22.61h** |
+
+  The single pre-fix pqc_migration signal was a `crystals`-in-
+  "quasicrystals" false positive on a materials-science article ("New
+  quantum algorithm solves impossible materials problem"). Removing it
+  is correct.
+
+  **Flagged for review (rigor §1/§11):** the large clock drop is
+  dominated by the **inverse** pqc_migration axis falling back to the
+  GRI cold-start floor of 0.58, which is then subtracted at coefficient
+  0.5. The spurious 0.10 reading had been masking a pre-existing
+  design question — a 0.58 cold-start floor is an *aggressive default
+  for an inverse/defensive axis* (an axis with no PQC-deployment
+  evidence arguably warrants 0 defensive credit, not 0.58). Per the
+  "keep GRI floor (status quo)" decision this is **not** changed here;
+  it is recorded as the next decision to make. Fix B's axis-4 reading
+  (0.189) is below the 0.58 floor it replaces, also pulling the clock
+  down — that is the honest best-evidence error-rate reading, not a
+  regression.
+
+- **Tests**: `tests/extract/test_keyword_boundary.py` (9 new) covering
+  substring rejection, punctuation-boundary acceptance, case
+  insensitivity, the wired axis gates, and fidelity admission/conversion.
+  Full suite 244 passing (was 235).
+
 ### Added — refresh.yml v0.9: active daily-review notification (2026-06-29)
 The daily refresh now actively notifies a human reviewer instead of
 relying on them to remember to check the repo. Workflow-only change (no

@@ -98,6 +98,29 @@ name: refresh
 #     `generated_at` (manifest creation timestamp, the actual data
 #     identifier) alongside the renamed `curator_code_commit`. No
 #     behaviour change; purely cosmetic / debuggability.
+#   * v0.9 (this PR, 2026-06-29): make human review an ACTIVE process.
+#     Pre-v0.9 the daily refresh opened a PR with `requires-review`
+#     labels but requested review from no one and emailed no one, so
+#     the human-in-the-loop gate (plan §F) depended on the reviewer
+#     remembering to check the repo. This PR adds two notification
+#     channels on top of the existing PR: (1) `reviewers`/`assignees:
+#     MarsVMondo` on the create-pull-request step so GitHub sends its
+#     native review-request notification (the auto-refresh PR is
+#     authored by the DEPLOY_TOKEN owner `subvurs`, so `MarsVMondo`
+#     — read access — is an eligible reviewer; you cannot request
+#     review from a PR's own author); (2) a dedicated SMTP step
+#     (`dawidd6/action-send-mail`) that emails the day's reading + PR
+#     link + review checklist. The email step requires two NEW repo
+#     secrets that this workflow does not yet have:
+#     `SMTP_EMAIL` + `SMTP_APP_PASSWORD` (Gmail app-password, same
+#     pattern as subvurs/quantum-curator). Optional repo VARIABLE
+#     `REVIEW_NOTIFY_EMAIL` overrides the recipient; absent it, the
+#     mail is sent to SMTP_EMAIL itself. Approval model is unchanged:
+#     the PR is still merged manually by the subvurs account after
+#     review — approval is the gate, NOT an auto-merge trigger. If the
+#     SMTP secrets are unset the email step fails loudly (CLAUDE.md §8)
+#     rather than silently skipping the notification; until they are
+#     added, the GitHub review-request channel still works on its own.
 
 on:
   workflow_dispatch:
@@ -163,6 +186,7 @@ jobs:
           ls -la _refresh/
 
       - name: Recompute clock_state.json
+        id: compute
         env:
           QDAY_PINNED_PUBKEY_B64: ${{ secrets.QDAY_CURATOR_PUBKEY_B64 }}
           QDAY_SIGNING_KEY_B64: ${{ secrets.QDAY_SIGNING_KEY_B64 }}
@@ -240,6 +264,16 @@ jobs:
                 f"clock_score={state.clock_score:.4f} "
                 f"clock_hours={state.clock_hours:.2f} "
                 f"canonical_sha={canonical_sha[:12]}")
+
+          # Expose the headline reading to later steps (the review-email
+          # subject/body). Written to $GITHUB_OUTPUT, not stdout-parsed,
+          # so the values are structured. Guard on the env var: a local
+          # `python - <<PY` run outside Actions has no GITHUB_OUTPUT.
+          gh_output = os.environ.get("GITHUB_OUTPUT")
+          if gh_output:
+              with open(gh_output, "a", encoding="utf-8") as fh:
+                  fh.write(f"clock_score={state.clock_score:.4f}\n")
+                  fh.write(f"clock_hours={state.clock_hours:.2f}\n")
           PY
 
       - name: Diff vs current site/data
@@ -278,6 +312,7 @@ jobs:
       # (already used by the quantum-curator repo for the manifest
       # force-push) routes around this and CI runs normally.
       - name: Open refresh PR
+        id: cpr
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
@@ -312,3 +347,54 @@ jobs:
           labels: |
             refresh
             requires-review
+          # Request review from + assign MarsVMondo (read access on the
+          # repo, so eligible to review/approve but not to merge — which
+          # matches the "approve, then subvurs merges" model). The PR is
+          # authored by the DEPLOY_TOKEN owner `subvurs`; GitHub forbids
+          # requesting review from a PR's own author, so this must NOT be
+          # `subvurs`. If the reviewer list ever needs to change, update
+          # both lines together.
+          reviewers: MarsVMondo
+          assignees: MarsVMondo
+
+      # Active-review email (v0.9). Sent only when the diff step found a
+      # change AND the PR step actually opened/updated a PR (so we never
+      # email a "review" with a dead link). Fail-loud per CLAUDE.md §8:
+      # if SMTP_EMAIL / SMTP_APP_PASSWORD are unset the step errors
+      # rather than skipping silently. The GitHub review-request above is
+      # an independent second channel, so a missing-secret failure here
+      # does not drop the human-in-the-loop gate.
+      - name: Email daily review request
+        if: steps.diff.outputs.changed == 'true' && steps.cpr.outputs.pull-request-number != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.SMTP_EMAIL }}
+          password: ${{ secrets.SMTP_APP_PASSWORD }}
+          from: Q-day Clock <${{ secrets.SMTP_EMAIL }}>
+          to: ${{ vars.REVIEW_NOTIFY_EMAIL || secrets.SMTP_EMAIL }}
+          subject: >-
+            [Q-day Clock] review today's update —
+            ${{ steps.compute.outputs.clock_hours }} h to midnight
+          body: |
+            The daily Q-day Clock refresh has opened a PR for your review.
+            Per plan §F nothing publishes until you approve and it is merged.
+
+            Today's recomputed reading:
+              clock_score : ${{ steps.compute.outputs.clock_score }}
+              clock_hours : ${{ steps.compute.outputs.clock_hours }} h to midnight
+
+            Review + approve here:
+              ${{ steps.cpr.outputs.pull-request-url }}
+
+            Before approving, check:
+              * Did any axis move > 0.05 vs the live state?
+              * Did any gate fire? (see `gates_fired` in the JSON)
+              * Were sources added/removed since the last refresh?
+              * Does CHANGELOG need a `Gate fires` or `Reversals` entry?
+
+            Approving the PR does NOT auto-publish. After approval the
+            update is merged manually (subvurs), and pages-deploy.yml
+            then renders the committed state to icqubit.com.

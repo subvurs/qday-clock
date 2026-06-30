@@ -9,6 +9,29 @@ with project-specific sections for `Gate fires` and `Reversals`.
 
 ## [Unreleased]
 
+### Changed — refresh.yml v0.10: collapse review to a one-step merge gate (2026-06-30)
+v0.9's formal GitHub review-request added friction it was never meant to:
+GitHub forbids an account approving its own PR, so review had to come from
+a second identity (`MarsVMondo`), and a formal "Approve" doesn't publish —
+it left a separate manual merge. That is two identities and two clicks to
+update a static site. `main` is unprotected, so `subvurs` can merge its own
+auto-refresh PR directly. v0.10 therefore:
+
+- **Removes** `reviewers: MarsVMondo` / `assignees: MarsVMondo` from the
+  `peter-evans/create-pull-request` step. No formal review is requested.
+- **Keeps** the daily SMTP email as the sole notification channel; reworded
+  body now says "review, then click Merge to publish" (the merge click is
+  the entire human gate) and notes that closing the PR cancels the day's
+  update (tomorrow's run reopens a fresh one).
+- **Unchanged**: SMTP secrets, optional `REVIEW_NOTIFY_EMAIL` recipient
+  override, fail-loud-on-missing-secret behaviour (CLAUDE.md §8), and the
+  no-auto-merge stance — the human merge click stays the deliberate gate.
+
+Net flow: daily run opens PR → email lands in the SMTP inbox with the
+reading + PR link → human clicks Merge → `pages-deploy.yml` publishes to
+icqubit.com. One identity, one click. `MarsVMondo` collaborator access is
+now unused by the workflow (left in place; harmless).
+
 ### Added — refresh.yml v0.9: active daily-review notification (2026-06-29)
 The daily refresh now actively notifies a human reviewer instead of
 relying on them to remember to check the repo. Workflow-only change (no

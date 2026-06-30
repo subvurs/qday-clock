@@ -9,6 +9,41 @@ with project-specific sections for `Gate fires` and `Reversals`.
 
 ## [Unreleased]
 
+### Added — refresh.yml v0.9: active daily-review notification (2026-06-29)
+The daily refresh now actively notifies a human reviewer instead of
+relying on them to remember to check the repo. Workflow-only change (no
+Python code, no package version bump). Two channels added on top of the
+existing `requires-review`-labelled PR:
+
+- **GitHub native review request** — `reviewers: MarsVMondo` +
+  `assignees: MarsVMondo` on the `peter-evans/create-pull-request` step.
+  The auto-refresh PR is authored by the DEPLOY_TOKEN owner `subvurs`,
+  so `MarsVMondo` (read access — can review/approve, cannot merge) is an
+  eligible reviewer. GitHub forbids requesting review from a PR's own
+  author, which is why the reviewer is deliberately not `subvurs`.
+
+- **SMTP email** — new `Email daily review request` step
+  (`dawidd6/action-send-mail@v3`, Gmail SMTP 465/SSL) sends the day's
+  `clock_score` / `clock_hours` + PR link + review checklist. Gated on
+  `steps.diff.outputs.changed == 'true'` AND a non-empty
+  `steps.cpr.outputs.pull-request-number`, so no email is sent on a
+  no-change day or with a dead PR link. The recompute step now carries
+  `id: compute` and writes `clock_score` / `clock_hours` to
+  `$GITHUB_OUTPUT` so the email can quote them.
+
+  **New repo secrets required** (this repo does not yet have them):
+  `SMTP_EMAIL` and `SMTP_APP_PASSWORD` (Gmail app-password, same pattern
+  as `subvurs/quantum-curator`). Optional repo variable
+  `REVIEW_NOTIFY_EMAIL` overrides the recipient; absent it the mail goes
+  to `SMTP_EMAIL` itself. Per CLAUDE.md §8 the email step fails loudly
+  if the secrets are unset rather than skipping silently — until they
+  are added, the GitHub review-request channel still works on its own.
+
+- **Approval model unchanged**: approval is the gate, not an auto-merge
+  trigger. After review the PR is merged manually by the `subvurs`
+  account; `pages-deploy.yml` then renders the committed state to
+  icqubit.com. Nothing auto-publishes (plan §F).
+
 ### Added — Path H: daily cron enabled + first end-to-end smoke (2026-06-27)
 Two workflow-only PRs (no package version bump — no Python code shipped):
 

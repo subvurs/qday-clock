@@ -98,6 +98,26 @@ name: refresh
 #     `generated_at` (manifest creation timestamp, the actual data
 #     identifier) alongside the renamed `curator_code_commit`. No
 #     behaviour change; purely cosmetic / debuggability.
+#   * v0.9 (2026-06-29): make human review an ACTIVE process. Pre-v0.9
+#     the daily refresh opened a PR with `requires-review` labels but
+#     requested review from no one and emailed no one, so the gate
+#     (plan §F) depended on someone remembering to check the repo. v0.9
+#     added a daily SMTP email + a native GitHub review-request to
+#     `MarsVMondo`. The email needs repo secrets `SMTP_EMAIL` +
+#     `SMTP_APP_PASSWORD` (Gmail app-password); optional repo VARIABLE
+#     `REVIEW_NOTIFY_EMAIL` overrides the recipient.
+#   * v0.10 (this PR, 2026-06-30): collapse to a ONE-STEP gate. v0.9's
+#     formal GitHub review-request was a mistake: GitHub forbids an
+#     account approving its own PR, so review had to come from a second
+#     identity (`MarsVMondo`), and a formal "Approve" doesn't publish —
+#     it left a separate manual merge. Two identities + two clicks to
+#     update a static site. Since `main` is unprotected, `subvurs` can
+#     merge its own PR directly, so v0.10 DROPS the `reviewers:`/
+#     `assignees:` request entirely. The email is now the sole channel
+#     and the merge click is the whole human gate: read the emailed
+#     reading, click "Merge", pages-deploy.yml publishes. SMTP secrets
+#     and `REVIEW_NOTIFY_EMAIL` are unchanged. Still no auto-merge —
+#     the human merge click remains the deliberate checkpoint.
 
 on:
   workflow_dispatch:
@@ -163,6 +183,7 @@ jobs:
           ls -la _refresh/
 
       - name: Recompute clock_state.json
+        id: compute
         env:
           QDAY_PINNED_PUBKEY_B64: ${{ secrets.QDAY_CURATOR_PUBKEY_B64 }}
           QDAY_SIGNING_KEY_B64: ${{ secrets.QDAY_SIGNING_KEY_B64 }}
@@ -240,6 +261,16 @@ jobs:
                 f"clock_score={state.clock_score:.4f} "
                 f"clock_hours={state.clock_hours:.2f} "
                 f"canonical_sha={canonical_sha[:12]}")
+
+          # Expose the headline reading to later steps (the review-email
+          # subject/body). Written to $GITHUB_OUTPUT, not stdout-parsed,
+          # so the values are structured. Guard on the env var: a local
+          # `python - <<PY` run outside Actions has no GITHUB_OUTPUT.
+          gh_output = os.environ.get("GITHUB_OUTPUT")
+          if gh_output:
+              with open(gh_output, "a", encoding="utf-8") as fh:
+                  fh.write(f"clock_score={state.clock_score:.4f}\n")
+                  fh.write(f"clock_hours={state.clock_hours:.2f}\n")
           PY
 
       - name: Diff vs current site/data
@@ -278,6 +309,7 @@ jobs:
       # (already used by the quantum-curator repo for the manifest
       # force-push) routes around this and CI runs normally.
       - name: Open refresh PR
+        id: cpr
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
@@ -312,3 +344,54 @@ jobs:
           labels: |
             refresh
             requires-review
+          # NB: we deliberately do NOT request a formal GitHub review here.
+          # `main` is unprotected, the PR is authored by the DEPLOY_TOKEN
+          # owner `subvurs`, and GitHub forbids an account approving its own
+          # PR — so a formal-review gate would force a second identity and a
+          # separate approve-then-merge dance. The human gate for a website
+          # update is simply: read the emailed reading, then click "Merge"
+          # as `subvurs`. The merge click IS the review-and-approve, and it
+          # triggers pages-deploy.yml. One step, one identity.
+
+      # Active-review email (v0.10). Sent only when the diff step found a
+      # change AND the PR step actually opened/updated a PR (so we never
+      # email a "review" with a dead link). Fail-loud per CLAUDE.md §8:
+      # if SMTP_EMAIL / SMTP_APP_PASSWORD are unset the step errors
+      # rather than skipping silently. This email is now the SOLE review
+      # channel — it carries the reading and a direct PR link; the human
+      # gate is the merge click on that PR.
+      - name: Email daily review request
+        if: steps.diff.outputs.changed == 'true' && steps.cpr.outputs.pull-request-number != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.SMTP_EMAIL }}
+          password: ${{ secrets.SMTP_APP_PASSWORD }}
+          from: Q-day Clock <${{ secrets.SMTP_EMAIL }}>
+          to: ${{ vars.REVIEW_NOTIFY_EMAIL || secrets.SMTP_EMAIL }}
+          subject: >-
+            [Q-day Clock] review today's update —
+            ${{ steps.compute.outputs.clock_hours }} h to midnight
+          body: |
+            The daily Q-day Clock refresh has opened a PR. Per plan §F
+            nothing publishes until you merge it — the merge is the gate.
+
+            Today's recomputed reading:
+              clock_score : ${{ steps.compute.outputs.clock_score }}
+              clock_hours : ${{ steps.compute.outputs.clock_hours }} h to midnight
+
+            Review, then click "Merge pull request" to publish:
+              ${{ steps.cpr.outputs.pull-request-url }}
+
+            Before merging, glance at:
+              * Did any axis move > 0.05 vs the live state?
+              * Did any gate fire? (see `gates_fired` in the JSON)
+              * Were sources added/removed since the last refresh?
+              * Does CHANGELOG need a `Gate fires` or `Reversals` entry?
+
+            Merging is the only step: it lands the new state on `main`
+            and pages-deploy.yml then renders it to icqubit.com. If the
+            reading looks wrong, just close the PR instead — tomorrow's
+            run will reopen a fresh one.

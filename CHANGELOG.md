@@ -9,6 +9,29 @@ with project-specific sections for `Gate fires` and `Reversals`.
 
 ## [Unreleased]
 
+### Changed — refresh.yml v0.10: collapse review to a one-step merge gate (2026-06-30)
+v0.9's formal GitHub review-request added friction it was never meant to:
+GitHub forbids an account approving its own PR, so review had to come from
+a second identity (`MarsVMondo`), and a formal "Approve" doesn't publish —
+it left a separate manual merge. That is two identities and two clicks to
+update a static site. `main` is unprotected, so `subvurs` can merge its own
+auto-refresh PR directly. v0.10 therefore:
+
+- **Removes** `reviewers: MarsVMondo` / `assignees: MarsVMondo` from the
+  `peter-evans/create-pull-request` step. No formal review is requested.
+- **Keeps** the daily SMTP email as the sole notification channel; reworded
+  body now says "review, then click Merge to publish" (the merge click is
+  the entire human gate) and notes that closing the PR cancels the day's
+  update (tomorrow's run reopens a fresh one).
+- **Unchanged**: SMTP secrets, optional `REVIEW_NOTIFY_EMAIL` recipient
+  override, fail-loud-on-missing-secret behaviour (CLAUDE.md §8), and the
+  no-auto-merge stance — the human merge click stays the deliberate gate.
+
+Net flow: daily run opens PR → email lands in the SMTP inbox with the
+reading + PR link → human clicks Merge → `pages-deploy.yml` publishes to
+icqubit.com. One identity, one click. `MarsVMondo` collaborator access is
+now unused by the workflow (left in place; harmless).
+
 ### Fixed — keyword token-boundary matching + axis-4 fidelity admission (2026-06-29)
 
 Two extractor-precision fixes. No package version bump; no golden-replay
@@ -67,6 +90,41 @@ manifest (190 articles), `observed_at = 2026-06-29T12:00Z`:
   substring rejection, punctuation-boundary acceptance, case
   insensitivity, the wired axis gates, and fidelity admission/conversion.
   Full suite 244 passing (was 235).
+
+### Added — refresh.yml v0.9: active daily-review notification (2026-06-29)
+The daily refresh now actively notifies a human reviewer instead of
+relying on them to remember to check the repo. Workflow-only change (no
+Python code, no package version bump). Two channels added on top of the
+existing `requires-review`-labelled PR:
+
+- **GitHub native review request** — `reviewers: MarsVMondo` +
+  `assignees: MarsVMondo` on the `peter-evans/create-pull-request` step.
+  The auto-refresh PR is authored by the DEPLOY_TOKEN owner `subvurs`,
+  so `MarsVMondo` (read access — can review/approve, cannot merge) is an
+  eligible reviewer. GitHub forbids requesting review from a PR's own
+  author, which is why the reviewer is deliberately not `subvurs`.
+
+- **SMTP email** — new `Email daily review request` step
+  (`dawidd6/action-send-mail@v3`, Gmail SMTP 465/SSL) sends the day's
+  `clock_score` / `clock_hours` + PR link + review checklist. Gated on
+  `steps.diff.outputs.changed == 'true'` AND a non-empty
+  `steps.cpr.outputs.pull-request-number`, so no email is sent on a
+  no-change day or with a dead PR link. The recompute step now carries
+  `id: compute` and writes `clock_score` / `clock_hours` to
+  `$GITHUB_OUTPUT` so the email can quote them.
+
+  **New repo secrets required** (this repo does not yet have them):
+  `SMTP_EMAIL` and `SMTP_APP_PASSWORD` (Gmail app-password, same pattern
+  as `subvurs/quantum-curator`). Optional repo variable
+  `REVIEW_NOTIFY_EMAIL` overrides the recipient; absent it the mail goes
+  to `SMTP_EMAIL` itself. Per CLAUDE.md §8 the email step fails loudly
+  if the secrets are unset rather than skipping silently — until they
+  are added, the GitHub review-request channel still works on its own.
+
+- **Approval model unchanged**: approval is the gate, not an auto-merge
+  trigger. After review the PR is merged manually by the `subvurs`
+  account; `pages-deploy.yml` then renders the committed state to
+  icqubit.com. Nothing auto-publishes (plan §F).
 
 ### Added — Path H: daily cron enabled + first end-to-end smoke (2026-06-27)
 Two workflow-only PRs (no package version bump — no Python code shipped):

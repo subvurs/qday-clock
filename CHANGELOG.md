@@ -9,6 +9,61 @@ with project-specific sections for `Gate fires` and `Reversals`.
 
 ## [Unreleased]
 
+### Reversal — axis-5 inverse cold-start floor 0.58 → 0.0 (2026-07-03)
+
+Reverses the "keep GRI floor (status quo)" decision recorded in the
+2026-06-29 token-boundary entry (see "Flagged for review" block below,
+lines under *Fixed — keyword token-boundary matching*). That entry
+flagged the 0.58 cold-start floor as "an aggressive default for an
+inverse/defensive axis" and parked the fix as "the next decision to
+make." This is that decision.
+
+**The defect.** The cold-start fallback applied a single GRI-anchored
+floor (`baseline_axis_floor` = 0.58 for GRI-2024 median CRQC year 2034)
+to *every* axis with no live signals. That floor is threat-neutral on
+the four **additive** axes (1–4) but threat-**optimistic** on axis 5
+(PQC migration), which is *subtracted* at coefficient 0.5. An axis-5
+cold-start of 0.58 therefore subtracted `0.5 × 0.58 = 0.29` from every
+reading with no PQC-deployment evidence behind it — crediting the clock
+for defensive readiness we cannot observe and backing it off ~7 hours.
+
+**The fix.** Cold-start is now **sign-aware** (`score/clock.py`):
+additive axes still fall back to the GRI floor (0.58); the inverse
+axis 5 falls back to **0.0** ("no evidence of PQC migration → assume
+none deployed"), the threat-conservative default. Documented in
+METHODOLOGY.md §3 (new "Cold-start fallback" clause under *Combination*).
+
+**Live-manifest impact** (informational; manifest is not committed
+data). Live 2026-07-03 manifest (298 articles), `observed_at =
+2026-07-03`, axis 5 cold-start (n=0):
+
+| | Before (0.58 floor) | After (0.0 floor) |
+|---|---|---|
+| pqc_migration reading | 0.5800 | **0.0000** |
+| clock_score | 0.0549 | **0.3449** |
+| clock_hours | 22.68h | **15.72h** |
+
+The ~7-hour move is the removal of the unevidenced backoff, not new
+threat signal. Axes 1–4 are unchanged; only the inverse-axis cold-start
+default changed.
+
+**Golden replay re-lock (CLAUDE.md §7).** The `manifest_2026_q1.json`
+fixture leaves axis 5 cold-start, so its reading drops 0.58 → 0.0,
+removing the 0.29 subtraction and moving the fixture clock 17.94h →
+10.98h. Re-locked per the documented bootstrap path:
+
+- `tests/golden/test_golden_replay.py::EXPECTED_CANONICAL_HASH`
+  re-locked: `696887e1…` → `7b22b0a2d51e4fc9937b95da9634f9dc9c4c8cc2cd70f3b3ac64660081428493`.
+- `tests/golden/test_golden_replay_v02.py` **unchanged** — the v0.2
+  fixture carries a live axis-5 signal, so it never hits the cold-start
+  path (verified: v02 replay still green).
+- `tests/golden/expected_state.json` regenerated (deterministic
+  RFC-8785 snapshot of the q1 replay; not read by any test).
+
+**Tests.** `tests/score/test_clock.py::test_cold_start_is_sign_aware`
+added (locks additive-axes = GRI floor, inverse-axis = 0.0). Full suite
+245 passing (was 244).
+
 ### Changed — refresh.yml v0.10: collapse review to a one-step merge gate (2026-06-30)
 v0.9's formal GitHub review-request added friction it was never meant to:
 GitHub forbids an account approving its own PR, so review had to come from

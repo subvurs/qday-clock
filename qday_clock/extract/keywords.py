@@ -54,15 +54,21 @@ PHYSICAL_SCALING_KEYWORDS: tuple[str, ...] = (
     "physical qubits",
 )
 
-# Axis 3 — Algorithmic / resource estimate (v0.2)
+# Axis 3 — Algorithmic / resource estimate (v0.2; ECC channel v0.3)
 RESOURCE_ESTIMATE_KEYWORDS: tuple[str, ...] = (
     "shor",
     "factoring",
     "factor rsa",
+    "rsa",
     "rsa-2048",
     "rsa 2048",
     "ecc",
+    "ecdlp",
+    "ecdsa",
+    "secp256k1",
     "elliptic curve",
+    "discrete logarithm",
+    "discrete log",
     "grover",
     "aes-128",
     "aes 128",

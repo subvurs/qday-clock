@@ -1,11 +1,18 @@
 """Axis 3 — Algorithmic / resource-estimate extractor (weight 0.30).
 
-Tracks two distinct attack channels against the threat-modelled
-primitives (per ``THREAT_MODEL.md``):
+Tracks the Shor-vulnerable public-key channel plus the AES/Grover
+sub-channel against the threat-modelled primitives (per
+``THREAT_MODEL.md``, which lists RSA-2048 **and** ECC-256 as *primary*
+Shor targets tracked under this same axis):
 
-* **Shor against RSA-2048** — qubit / time resource estimates for
-  factoring RSA-2048. Anchored to Gidney-Ekera 2019 (~20M qubits,
-  ~8 hours).
+* **Shor against RSA-2048 or ECC-256** — physical-qubit / time resource
+  estimates for factoring RSA-2048 or solving the 256-bit elliptic-curve
+  discrete-log problem (secp256k1 / P-256). Both primitives are
+  Shor-vulnerable and, per THREAT_MODEL.md, carry *roughly comparable*
+  leading-order resource estimates, so they share one anchor map.
+  Anchored to Gidney-Ekera 2019 (~20M physical qubits, ~8 hours);
+  successor estimates (Gidney 2025 RSA ~1M noisy qubits; Google Quantum
+  AI 2026 ECDLP-256 <500k physical qubits) shift the reading upward.
 * **Grover against AES-128** — sub-channel, folded with a 0.3
   sub-weight inside this axis so a "Grover weakens AES-128"
   announcement contributes at most ``0.3`` to the axis reading. This
@@ -17,6 +24,11 @@ Anchor map (Shor channel) from METHODOLOGY.md §3 Axis 3:
 - ``0.0`` ← 20,000,000 qubits OR 8 hours (Gidney-Ekera baseline)
 - ``0.5`` ← ≤ 1,000,000 qubits OR ≤ 1 hour
 - ``1.0`` ← ≤ 100,000 qubits OR ≤ 1 minute
+
+The qubit anchors are defined on **physical** qubit counts. Logical
+qubit counts (e.g. the ECC-256 paper's "~1,450 logical qubits") are the
+job of Axis 1, not this axis, and are deliberately *not* fed to the
+physical anchor map — see :func:`_extract_qubits`.
 
 Anchor map (AES sub-channel):
 
@@ -52,9 +64,19 @@ _MAGNITUDE_SUFFIXES: dict[str, float] = {
 }
 
 # "20 million qubits", "1.5 million qubits", "100,000 qubits",
-# "100k qubits", "20M qubits", "100,000 physical qubits"
+# "100k qubits", "20M qubits", "100,000 physical qubits",
+# "less than a million noisy qubits" (indefinite article → 1),
+# "500,000 error-corrected qubits".
+#
+# The optional adjective group admits physical-class qualifiers
+# (physical / noisy / error-corrected) but deliberately NOT "logical":
+# logical-qubit counts are Axis 1's domain and are a different scale
+# from the physical anchor map used here.
 _QUBITS_TO_FACTOR_PATTERN = re.compile(
-    r"(\d+(?:[\.,]\d+)?)\s*(million|billion|thousand|k|m|b)?\s*(?:physical\s*)?qubits"
+    r"(\d+(?:[\.,]\d+)?|an?)\s*"
+    r"(million|billion|thousand|k|m|b)?\s*"
+    r"(?:(?:physical|noisy|error[\s-]?corrected)\s+)?"
+    r"qubits"
     r"(?:\s+(?:to\s+)?(?:factor|break|attack))?",
     re.IGNORECASE,
 )
@@ -82,6 +104,26 @@ _RSA_2048_MENTIONS: tuple[str, ...] = (
     "factoring rsa",
     "2048-bit rsa",
     "2048 bit rsa",
+    "rsa integers",
+    "rsa integer",
+)
+
+#: ECC-256 / ECDLP mentions. Per THREAT_MODEL.md, ECC-256 is a primary
+#: Shor target with a leading-order resource estimate comparable to
+#: RSA-2048, so ECC signals route through the same anchor map as RSA.
+_ECC_256_MENTIONS: tuple[str, ...] = (
+    "ecdlp",
+    "secp256k1",
+    "elliptic curve discrete log",
+    "elliptic-curve discrete log",
+    "elliptic curve cryptography",
+    "elliptic-curve cryptography",
+    "ecc-256",
+    "ecc 256",
+    "ecdsa",
+    "p-256",
+    "256-bit elliptic",
+    "256 bit elliptic",
 )
 
 _AES_128_MENTIONS: tuple[str, ...] = (
@@ -97,7 +139,7 @@ _GROVER_MENTIONS: tuple[str, ...] = ("grover",)
 class ResourceEstimateExtraction:
     """Result of running the axis-3 extractor on an article."""
 
-    channel: str  # "shor" or "aes_grover"
+    channel: str  # "shor_rsa", "shor_ecc", or "aes_grover"
     qubits_to_factor: int | None
     time_to_factor_minutes: float | None
     normalized_value: float
@@ -123,18 +165,22 @@ def extract(title: str, summary: str) -> ResourceEstimateExtraction | None:
     lower = blob.lower()
 
     is_rsa = any(m in lower for m in _RSA_2048_MENTIONS)
+    is_ecc = any(m in lower for m in _ECC_256_MENTIONS)
     is_aes = any(m in lower for m in _AES_128_MENTIONS)
     is_grover = any(m in lower for m in _GROVER_MENTIONS)
 
-    # Shor-on-RSA-2048 channel: try qubits-to-factor or time-to-factor.
-    if is_rsa:
+    # Shor channel: RSA-2048 or ECC-256 (both primary Shor targets, one
+    # shared physical-qubit / time anchor map per THREAT_MODEL.md). RSA
+    # is checked first so a paper naming both primitives is labelled by
+    # its RSA framing; the numeric mapping is identical either way.
+    if is_rsa or is_ecc:
         qubits = _extract_qubits(blob)
         minutes = _extract_minutes(blob)
         if qubits is None and minutes is None:
             return None
         shor_value, rationale = _map_shor(qubits, minutes)
         return ResourceEstimateExtraction(
-            channel="shor",
+            channel="shor_rsa" if is_rsa else "shor_ecc",
             qubits_to_factor=qubits,
             time_to_factor_minutes=minutes,
             normalized_value=shor_value,
@@ -172,11 +218,18 @@ def _extract_qubits(blob: str) -> int | None:
     for m in _QUBITS_TO_FACTOR_PATTERN.finditer(blob):
         raw_num = m.group(1).replace(",", "")
         suffix = (m.group(2) or "").lower()
-        try:
-            base = float(raw_num)
-        except ValueError:
-            # Explicitly handled: malformed decimal.
-            continue
+        if raw_num.lower() in ("a", "an"):
+            # Indefinite article as a magnitude head: "a million qubits"
+            # → 1 × million. Only meaningful with a magnitude suffix; a
+            # bare "a qubits" resolves to 1 and is dropped by the
+            # plausibility window below.
+            base = 1.0
+        else:
+            try:
+                base = float(raw_num)
+            except ValueError:
+                # Explicitly handled: malformed decimal.
+                continue
         multiplier = _MAGNITUDE_SUFFIXES.get(suffix, 1.0)
         n = int(round(base * multiplier))
         if 1_000 <= n <= 10_000_000_000:

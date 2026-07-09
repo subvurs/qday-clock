@@ -71,15 +71,34 @@ Gidney-Ekera-class resource estimates for RSA-2048 and ECC-256;
 Grover-attack estimates against AES-128; factoring-algorithm
 improvements.
 
-Keywords: `Shor`, `factoring`, `RSA-2048`, `ECC`, `Grover`, `AES-128`,
-`T-count`, `T-depth`, `physical qubits to factor`, `space-time
-tradeoff`.
+Keywords: `Shor`, `factoring`, `RSA`, `RSA-2048`, `ECC`, `ECDLP`,
+`ECDSA`, `secp256k1`, `elliptic curve`, `discrete logarithm`,
+`discrete log`, `Grover`, `AES-128`, `T-count`, `T-depth`, `physical
+qubits to factor`, `space-time tradeoff`.
 
-Anchor mapping:
+Anchor mapping (physical qubits / wall-clock time; shared by both
+Shor channels below):
 
 - `0.0` ← original 2019 Gidney-Ekera estimate (~20M qubits, ~8 h)
 - `0.5` ← any peer-reviewed estimate ≤ 1M qubits or ≤ 1 hour
 - `1.0` ← any peer-reviewed estimate ≤ 100k qubits or ≤ 1 minute
+
+Two Shor channels share this anchor map (both are full-weight, per the
+THREAT_MODEL.md "primary target, same axis" declaration):
+
+- `shor_rsa` — RSA-2048 factoring. Calibration anchor: Gidney 2025
+  ("How to factor 2048 bit RSA integers with less than a million noisy
+  qubits", arXiv 2505.15917) parses to 1M physical qubits → `0.5`.
+- `shor_ecc` — ECDLP-256 / secp256k1 discrete-log. Calibration anchor:
+  Google Quantum AI 2026 ("Securing Elliptic Curve Cryptocurrencies…",
+  arXiv 2603.28846) at < 500k physical qubits → ≈ `0.65` (interpolated
+  on the shared 1M→0.5 / 100k→1.0 anchors).
+
+The anchor map is on **physical** qubits. A *logical*-qubit count
+(e.g. the ECC paper's ≈ 1450 logical qubits) is Axis 1's scale, not
+Axis 3's; the extractor deliberately excludes "logical qubits" from
+the physical anchor and fails conservative (returns `None`) rather
+than pegging to 1.0 off a small logical count.
 
 AES-128 / Grover contributes weight 0.3 *inside* this axis, so AES
 weakening contributes ~0.09 of the total clock.

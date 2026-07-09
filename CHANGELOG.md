@@ -9,6 +9,72 @@ with project-specific sections for `Gate fires` and `Reversals`.
 
 ## [Unreleased]
 
+### Added — Axis 3: ECC/ECDLP Shor channel + Gidney-2025 RSA phrasing (2026-07-09)
+
+Axis 3 (`resource_estimate`) previously extracted only an RSA-Shor
+channel and an AES/Grover sub-channel. Two gaps against the current
+literature are closed here; both are **code catching up to the already-
+stated THREAT_MODEL.md**, not a threat-model revision (ECC-256 was
+already named a *primary* target "tracked under the same axis").
+
+- **New channel `shor_ecc`.** THREAT_MODEL.md listed ECC-256 as a
+  primary Shor target and METHODOLOGY.md §3 listed the `ECC` keyword,
+  but `axis_resource_estimate.py` had **no ECC extraction path** — the
+  docs promised coverage the code didn't deliver. ECDLP-256 /
+  secp256k1 / elliptic-curve-discrete-log mentions now emit a
+  `shor_ecc` signal that reuses the RSA physical-qubit/time anchor map
+  unchanged (the "roughly comparable resource estimate, same axis"
+  declaration means no separate calibration). Anchored to Google
+  Quantum AI 2026, "Securing Elliptic Curve Cryptocurrencies against
+  Quantum Vulnerabilities" (arXiv 2603.28846): < 500k physical qubits
+  → ≈ 0.65 on the shared 1M→0.5 / 100k→1.0 anchors.
+
+- **RSA channel now catches Gidney 2025 phrasing.** The title of
+  Gidney 2025, "How to factor 2048 bit RSA integers with less than a
+  million noisy qubits" (arXiv 2505.15917), previously failed *both*
+  gates: no keyword matched, and the numeric pattern rejected "a
+  million" (no digit) and "noisy qubits" (adjective not "physical").
+  The qubit pattern now parses an indefinite article ("a"/"an" → 1),
+  the physical-class adjectives `physical|noisy|error-corrected`, and
+  the keyword list admits bare `rsa`. Gidney 2025 → 1,000,000 physical
+  qubits → 0.5 (the ≤1M anchor).
+
+- **Physical vs logical guard (rigor §10).** The anchor map is on
+  *physical* qubits. The ECC paper's ≈ 1450 *logical* qubits is Axis
+  1's scale; feeding it to the physical anchor would spuriously peg
+  Axis 3 to 1.0. The pattern excludes "logical qubits", so a
+  logical-only article fails conservative (returns `None`).
+
+- **New keywords** (`RESOURCE_ESTIMATE_KEYWORDS`): `rsa`, `ecdlp`,
+  `ecdsa`, `secp256k1`, `discrete logarithm`, `discrete log`.
+
+**Evidence class of both anchor papers: `theory`** (peer-reviewed /
+preprint resource estimates, not hardware demonstrations). This is a
+scoring-input change; no clock-hand claim is made from a hardware run.
+
+**Live-manifest clock impact: not measured in this change.** Unlike the
+2026-06-29 entry, no `simfix.py` run is reported here — the live curator
+manifest is not committed data and it is unknown whether either anchor
+paper is currently in the corpus. The change is proven at the extractor
+and unit-test level; live impact will surface on the next refresh.
+
+**Golden replay: unaffected, verified.** Both golden fixtures
+reconstruct `Signal` objects directly from JSON with pre-scored
+`normalized_value`, so they never call this extractor — the v0.1 hash
+`696887e1…` and v0.2 hash `96eb797b…` are unchanged (both replay tests
+green). Cross-check (rigor §4): the v0.2 fixture's hand-scored
+RSA-2048 signal (`signals[6]`, title "…at ~1M physical qubits",
+`normalized_value: 0.5`) is now *independently* reproduced by the live
+extractor from its title+summary → `shor_rsa`, 1,000,000 qubits, 0.5.
+
+- **Tests**: `tests/extract/test_axis_resource_estimate.py` +8 (Gidney
+  indefinite-article phrasing, error-corrected adjective, ECC physical
+  channel, secp256k1 keyword gate, ECC-logical-excluded, ECC-without-
+  numeric, RSA+ECC-both labeling); 1 assertion updated (`channel ==
+  "shor"` → `"shor_rsa"`, a label refinement — the numeric semantics
+  are unchanged, not a §7 weakening). Full suite **251 passed** (was
+  244).
+
 ### Changed — refresh.yml v0.10: collapse review to a one-step merge gate (2026-06-30)
 v0.9's formal GitHub review-request added friction it was never meant to:
 GitHub forbids an account approving its own PR, so review had to come from

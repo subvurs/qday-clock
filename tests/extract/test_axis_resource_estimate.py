@@ -35,7 +35,7 @@ def test_no_keyword_returns_none() -> None:
 def test_shor_baseline_20m_qubits_maps_to_zero() -> None:
     res = extract("Gidney-Ekera RSA-2048 estimate: 20 million qubits", "")
     assert res is not None
-    assert res.channel == "shor"
+    assert res.channel == "shor_rsa"
     assert res.qubits_to_factor == 20_000_000
     assert res.normalized_value == pytest.approx(0.0)
 
@@ -176,3 +176,88 @@ def test_shor_time_monotone_severity() -> None:
     c = extract("Factor RSA-2048 in 2 minutes", "")
     assert a is not None and b is not None and c is not None
     assert a.normalized_value < b.normalized_value < c.normalized_value
+
+
+# ---------------------------------------------------------------------------
+# RSA channel — Gidney 2025 phrasing ("a million noisy qubits")
+# ---------------------------------------------------------------------------
+
+
+def test_gidney_2025_indefinite_article_million_noisy_qubits() -> None:
+    """Gidney 2025 (arXiv 2505.15917) title phrasing.
+
+    "factor 2048 bit RSA integers with less than a million noisy qubits":
+    the indefinite article "a" → 1, magnitude "million", and the
+    physical-class adjective "noisy" must all parse to 1,000,000 qubits
+    → axis reading 0.5 (on the ≤1M anchor).
+    """
+    res = extract(
+        "How to factor 2048 bit RSA integers with less than a million noisy qubits",
+        "",
+    )
+    assert res is not None
+    assert res.channel == "shor_rsa"
+    assert res.qubits_to_factor == 1_000_000
+    assert res.normalized_value == pytest.approx(0.5)
+
+
+def test_error_corrected_qubit_adjective_parses() -> None:
+    res = extract("Factor RSA-2048 with 500,000 error-corrected qubits", "")
+    assert res is not None
+    assert res.qubits_to_factor == 500_000
+
+
+# ---------------------------------------------------------------------------
+# ECC-256 channel (Google Quantum AI 2026, arXiv 2603.28846)
+# ---------------------------------------------------------------------------
+
+
+def test_ecc_physical_qubits_uses_shared_anchor_map() -> None:
+    """ECDLP-256 at <500k physical qubits → ~0.65 on the shared anchor.
+
+    Per THREAT_MODEL.md, ECC-256 is a primary Shor target tracked under
+    the same axis-3 anchor map as RSA. 500k physical qubits interpolates
+    between the 1M→0.5 and 100k→1.0 anchors.
+    """
+    res = extract(
+        "Securing Elliptic Curve Cryptocurrencies against Quantum Vulnerabilities",
+        "Breaking ECDLP-256 on secp256k1 could require fewer than 500,000 "
+        "physical qubits.",
+    )
+    assert res is not None
+    assert res.channel == "shor_ecc"
+    assert res.qubits_to_factor == 500_000
+    assert res.normalized_value == pytest.approx(0.65, abs=0.01)
+
+
+def test_ecc_secp256k1_keyword_gates_the_axis() -> None:
+    assert matches("secp256k1 discrete-log resource estimate", "200,000 qubits")
+
+
+def test_ecc_logical_qubit_count_is_not_fed_to_physical_anchor() -> None:
+    """The ECC paper's "~1450 logical qubits" is Axis 1's scale, not
+    Axis 3's physical anchor. With only a logical count present and no
+    physical/time numeric, axis-3 fails conservative (returns None)
+    rather than pegging to 1.0 off a 1450-count."""
+    res = extract(
+        "Breaking Bitcoin ECDSA on secp256k1",
+        "The optimized circuit needs about 1450 logical qubits.",
+    )
+    assert res is None
+
+
+def test_ecc_without_numeric_returns_none() -> None:
+    res = extract("Elliptic curve cryptography and the quantum threat", "commentary")
+    assert res is None
+
+
+def test_rsa_and_ecc_both_named_labels_as_rsa() -> None:
+    """A paper naming both primitives is labelled by its RSA framing;
+    the numeric mapping is identical for either channel."""
+    res = extract(
+        "Resource estimates for RSA-2048 and ECDLP-256",
+        "Both fall with 800,000 physical qubits.",
+    )
+    assert res is not None
+    assert res.channel == "shor_rsa"
+    assert res.qubits_to_factor == 800_000

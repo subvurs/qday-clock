@@ -12,6 +12,8 @@ from datetime import UTC, datetime
 
 from qday_clock.core.schemas import AxisId, EvidenceClass, Signal
 from qday_clock.score.clock import compute_clock_state
+from qday_clock.score.gri_baseline import baseline_axis_floor
+from qday_clock.score.gri_baseline import latest as latest_gri
 
 
 def _sig(
@@ -39,13 +41,26 @@ def _sig(
 
 def test_cold_start_uses_gri_floor() -> None:
     state = compute_clock_state(signals=[])
-    # All five axes should fall back to GRI baseline; clock_hours
-    # should be in [0, 24], not pinned at 0 or 24.
+    # All five axes should be present (cold-start fallback), and
+    # clock_hours in [0, 24], not pinned at 0 or 24.
     assert 0.0 <= state.clock_hours <= 24.0
-    # All five axes should be present (cold-start fallback).
     assert len(state.axes) == 5
     for axis_id in AxisId:
         assert axis_id.value in state.axes
+
+
+def test_cold_start_is_sign_aware() -> None:
+    """Additive axes (1-4) cold-start to the GRI floor; the inverse
+    axis (5, PQC migration) cold-starts to 0.0 so the subtracted axis
+    is not credited with unevidenced defensive deployment."""
+    state = compute_clock_state(signals=[])
+    floor = baseline_axis_floor(latest_gri())
+    for axis_id in AxisId:
+        reading = state.axes[axis_id.value].reading
+        if axis_id is AxisId.PQC_MIGRATION:
+            assert reading == 0.0, "inverse axis cold-start must be 0.0"
+        else:
+            assert reading == floor, f"{axis_id.value} cold-start must be GRI floor"
 
 
 def test_logical_qubit_signal_moves_clock_earlier() -> None:

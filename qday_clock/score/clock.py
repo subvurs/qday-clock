@@ -113,15 +113,31 @@ def compute_clock_state(
             now=now,
         )
         if not reading.contributing_signal_ids:
-            # GRI fallback — see METHODOLOGY.md §3 cold-start clause.
+            # Cold-start fallback — see METHODOLOGY.md §3 cold-start clause.
+            # The GRI floor is threat-NEUTRAL on the four additive axes
+            # (1-4), but axis 5 (PQC migration) is SUBTRACTED in the final
+            # combination. Applying the same positive floor there assumes
+            # unevidenced defensive deployment and backs the clock off. The
+            # threat-conservative default for "no evidence of PQC migration"
+            # is 0.0 (assume none deployed), so the clock is not credited for
+            # readiness we cannot observe.
+            if axis is AxisId.PQC_MIGRATION:
+                axis_floor = 0.0
+                cold_note = (
+                    "axis cold-start — inverse axis, no PQC-migration "
+                    "evidence (0.0, threat-conservative)"
+                )
+            else:
+                axis_floor = floor
+                cold_note = f"axis cold-start — GRI {gri.survey_year} baseline floor"
             reading = AxisReading(
                 axis=axis,
-                reading=floor,
+                reading=axis_floor,
                 contributing_signal_ids=[],
                 n_independent_sources=0,
-                confidence_band_low=max(0.0, floor - 0.15),
-                confidence_band_high=min(1.0, floor + 0.15),
-                note=f"axis cold-start — GRI {gri.survey_year} baseline floor",
+                confidence_band_low=max(0.0, axis_floor - 0.15),
+                confidence_band_high=min(1.0, axis_floor + 0.15),
+                note=cold_note,
             )
         axis_readings[axis.value] = reading
         all_verdicts.extend(verdicts)

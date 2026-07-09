@@ -118,6 +118,24 @@ name: refresh
 #     reading, click "Merge", pages-deploy.yml publishes. SMTP secrets
 #     and `REVIEW_NOTIFY_EMAIL` are unchanged. Still no auto-merge —
 #     the human merge click remains the deliberate checkpoint.
+#   * v0.11 (2026-07-09): move the daily cron off the top of the hour
+#     (0 8 -> 37 8). The 2026-07-09 scheduled run (29012790500) failed
+#     with "The job was not acquired by Runner of type hosted even after
+#     multiple attempts": it fired at the contended :00 slot, sat queued
+#     past the 15-minute `timeout-minutes` cap without ever getting a
+#     hosted runner, and was cancelled. This is a GitHub scheduling-
+#     contention failure, not a code/data defect — 8 of the 9 prior
+#     crons succeeded and the manual `workflow_dispatch` on identical
+#     code (29045748568) completed in 31s. GitHub batches `schedule`
+#     events at the top of the hour and preferentially delays/drops that
+#     slot under load (the successful crons already show 2-4h scheduling
+#     delays from an 08:00 target). Shifting to 08:37 sidesteps the
+#     :00 batch. Honest caveat: this reduces the probability of a
+#     runner-acquisition miss but cannot guarantee against it — hosted-
+#     runner availability is outside our control. A missed day self-
+#     heals on the next successful cron (the clock is a slow-moving
+#     reading), and a manual `gh workflow run refresh.yml` recovers it
+#     immediately. No behaviour change to the compute/sign/PR path.
 
 on:
   workflow_dispatch:
@@ -132,7 +150,10 @@ on:
         type: string
         default: ""
   schedule:
-    - cron: "0 8 * * *"   # daily 08:00 UTC — Curator finishes ~07:30 UTC
+    # daily 08:37 UTC — Curator finishes ~07:30 UTC (well before this),
+    # deliberately OFF the top of the hour to avoid GitHub's :00
+    # scheduling-contention slot. See the v0.11 note above.
+    - cron: "37 8 * * *"
 
 permissions:
   contents: write

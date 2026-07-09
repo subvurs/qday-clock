@@ -92,18 +92,43 @@ contribution 0.6 until corroborated.
 
 ---
 
-## Axis 3 — Algorithmic / resource estimate (v0.2 — STUBBED)
+## Axis 3 — Algorithmic / resource estimate (WIRED)
 
 **Weight**: 0.30 (highest)
 **Keywords**: `qday_clock.extract.keywords.RESOURCE_ESTIMATE_KEYWORDS`
+**Extractor**: `qday_clock.extract.axis_resource_estimate`
 
-Keyword list shipped; extractor module not yet wired.
-
-Planned anchor map:
+Anchor map (physical qubits / wall-clock time):
 
 - 0.0 ← original Gidney-Ekera 2019 estimate (~20M qubits / 8 hours)
 - 0.5 ← any peer-reviewed estimate ≤ 1M qubits or ≤ 1 hour
 - 1.0 ← any peer-reviewed estimate ≤ 100k qubits or ≤ 1 minute
+
+When both a qubit count and a time are present, the channel takes the
+**max** (closest-to-Q-day) of the two readings.
+
+Three channels emit on this axis:
+
+| Channel | Fires on | Anchor |
+|---|---|---|
+| `shor_rsa` | RSA-2048 factoring mentions | shared physical-qubit/time map above |
+| `shor_ecc` | ECDLP-256 / secp256k1 / elliptic-curve discrete-log | **same** shared map (THREAT_MODEL.md "same axis") |
+| `aes_grover` | AES-128 + Grover | severity × `AES_SUB_WEIGHT` (0.3) |
+
+New keywords admitted for the two Shor channels (2026-07): `rsa`,
+`ecdlp`, `ecdsa`, `secp256k1`, `discrete logarithm`, `discrete log`
+(alongside the pre-existing `shor`, `factoring`, `factor rsa`,
+`rsa-2048`, `ecc`, `elliptic curve`, `grover`, `aes-128`, …).
+
+**Physical vs logical**: the anchor map is on *physical* qubits. A
+logical-qubit count (Axis 1's scale) is deliberately excluded from the
+qubit pattern — a paper citing only "≈1450 logical qubits" fails
+conservative (`None`) rather than pegging Axis 3 to 1.0.
+
+**Indefinite-article / adjective phrasing**: the qubit pattern parses
+"a million noisy qubits" (indefinite article → 1, magnitude "million",
+physical-class adjective "noisy") and "error-corrected qubits", so the
+Gidney 2025 title phrasing (arXiv 2505.15917) reaches the extractor.
 
 AES-128 / Grover sub-axis folded in at weight 0.3 internally (so AES
 contributes ~0.09 of the total clock; matches the "weakens not breaks"

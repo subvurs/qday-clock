@@ -13,14 +13,22 @@ must not be silently widened.
   policy-relevant time window (hours, not millennia).
 - Anchor: Gidney & Ekera (2019), arXiv:1905.09749 — ~20M physical
   qubits at 10⁻³ gate error, ~8 hours, surface code.
-- Successor estimates (Regev 2023, Chevignard et al. 2024) tracked as
-  algorithmic improvements that shift Axis 3.
+- Successor estimates (Regev 2023, Chevignard et al. 2024, Gidney 2025
+  arXiv:2505.15917 — < 1M noisy qubits, < 1 week) tracked as algorithmic
+  improvements that shift Axis 3 (channel `shor_rsa`).
 
 ### Primary: ECC-256 via Shor's algorithm
 - Threat: Shor-style discrete-log attack against 256-bit elliptic-curve
   keys (P-256, secp256k1).
 - Roughly comparable resource estimate to RSA-2048 (within a small
   constant factor at the leading order); tracked under the same axis.
+- Anchor: Google Quantum AI (2026), arXiv:2603.28846 — < 500k physical
+  qubits (≈ 1450 logical), ~9-minute attack window for ECDLP-256.
+- **Implemented** as Axis-3 channel `shor_ecc`, reusing the RSA physical-
+  qubit / time anchor map (no separate calibration — the "same axis"
+  declaration above). Prior to this the keyword list named ECC but the
+  extractor had no ECC channel; the code now matches the threat model.
+  This is not a threat-model revision (ECC-256 was already in scope).
 
 ### Secondary: AES-128 weakening via Grover's algorithm
 - Threat: Grover-accelerated brute force reduces effective security

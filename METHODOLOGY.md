@@ -137,6 +137,25 @@ clock_hours = 24 * (1.0 - clock_score)   # midnight = Q-day
 Weights MUST sum to 1.0 across axes 1–4 (validated by pydantic at
 construction).
 
+**Cold-start fallback.** When an axis has no live signals (extractor
+not yet wired, or no qualifying article in the current window), it
+falls back to a GRI-anchored floor so the clock does not read `0.0`
+merely for lack of an extraction. The floor is **sign-aware**:
+
+- Additive axes (1–4): fall back to the GRI baseline floor
+  (`baseline_axis_floor`, currently `0.58` for the GRI-2024 median
+  CRQC year 2034). This is threat-neutral — it stands in for
+  GRI-median progress.
+- Inverse axis (5, PQC migration): falls back to **`0.0`**, not the
+  GRI floor. Because axis 5 is *subtracted*, a positive floor would
+  credit the clock for defensive deployment we cannot observe and back
+  the clock off without evidence. `0.0` is the threat-conservative
+  default ("no evidence of PQC migration → assume none deployed").
+
+Prior to this change axis 5 also inherited the `0.58` floor, which
+subtracted `0.5 × 0.58 = 0.29` from every cold-start reading — an
+unevidenced ~7-hour backoff. See CHANGELOG.
+
 ## 4. Weights (current values)
 
 | Axis | Weight | Justification |

@@ -77,6 +77,35 @@ extractor from its title+summary → `shor_rsa`, 1,000,000 qubits, 0.5.
   are unchanged, not a §7 weakening). Full suite **251 passed** (was
   244).
 
+### Changed — refresh.yml v0.11: daily cron moved off the top of the hour (2026-07-09)
+
+The 2026-07-09 scheduled refresh (Actions run 29012790500) failed with
+`The job was not acquired by Runner of type hosted even after multiple
+attempts`. **This is a GitHub scheduling-contention failure, not a
+code or data defect.** The job fired at the contended `:00` slot, sat
+queued past the 15-minute `timeout-minutes` cap without ever acquiring
+a hosted runner, and was cancelled. Evidence it is infra-only: 8 of the
+9 prior daily crons (2026-07-01 → 07-08) succeeded, and a manual
+`workflow_dispatch` on byte-identical code (run 29045748568) completed
+in 31 s.
+
+Fix (proportionate to the cause): move `schedule.cron` from `0 8 * * *`
+to `37 8 * * *`. GitHub batches `schedule` events at the top of the
+hour and preferentially delays/drops that slot under load — the
+successful crons themselves already ran 2–4 h after their 08:00 target,
+confirming top-of-hour queueing. Shifting to 08:37 sidesteps the `:00`
+batch while staying well after the upstream Curator manifest lands
+(~07:30 UTC). No change to the compute / sign / PR path.
+
+**Honest caveat (rigor §10):** this lowers the probability of a
+runner-acquisition miss but cannot guarantee against it — hosted-runner
+availability is outside our control. A missed day self-heals on the
+next successful cron (the clock is a slow-moving reading), and a manual
+`gh workflow run refresh.yml` recovers it immediately. No auto-retry
+mechanism was added: a dedicated retry workflow would be
+disproportionate to a once-in-nine-days transient, and GitHub cannot
+re-run a job that never acquired a runner from within itself.
+
 ### Reversal — axis-5 inverse cold-start floor 0.58 → 0.0 (2026-07-03)
 
 Reverses the "keep GRI floor (status quo)" decision recorded in the

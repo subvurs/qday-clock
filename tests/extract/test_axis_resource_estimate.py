@@ -221,8 +221,7 @@ def test_ecc_physical_qubits_uses_shared_anchor_map() -> None:
     """
     res = extract(
         "Securing Elliptic Curve Cryptocurrencies against Quantum Vulnerabilities",
-        "Breaking ECDLP-256 on secp256k1 could require fewer than 500,000 "
-        "physical qubits.",
+        "Breaking ECDLP-256 on secp256k1 could require fewer than 500,000 physical qubits.",
     )
     assert res is not None
     assert res.channel == "shor_ecc"

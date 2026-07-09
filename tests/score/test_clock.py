@@ -12,7 +12,8 @@ from datetime import UTC, datetime
 
 from qday_clock.core.schemas import AxisId, EvidenceClass, Signal
 from qday_clock.score.clock import compute_clock_state
-from qday_clock.score.gri_baseline import baseline_axis_floor, latest as latest_gri
+from qday_clock.score.gri_baseline import baseline_axis_floor
+from qday_clock.score.gri_baseline import latest as latest_gri
 
 
 def _sig(
